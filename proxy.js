@@ -232,7 +232,7 @@ const workerserver = net.createServer(function (localsocket) {
 
 	localsocket.on('data', function (data) {
 		
-		if(data) logger.debug('received from woker ('+localsocket.remoteAddress+':'+localsocket.remotePort+'):'+data.toString().trim());
+		if(data) logger.debug('received from worker ('+localsocket.remoteAddress+':'+localsocket.remotePort+'):'+data.toString().trim());
 		var request = JSON.parse(data);
 		
 		if(request.method === 'login')
@@ -296,39 +296,51 @@ io.on('connection', function(socket){
 	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
-		
-		var coins = [];
-		for (var pool of pools[user]) 
-			coins.push({
-				symbol:pool.symbol,
-				login:pool.name.split('.')[0],
-				url:pool.url,
-				api:pool.api,
-				active:((pools[user].default||config.default)===pool.symbol)?1:0
-			});
+
+		if(pools[user]) {
+			var coins = [];
+			for (var pool of pools[user]) 
+				coins.push({
+					symbol:pool.symbol,
+					login:pool.name.split('.')[0],
+					url:pool.url,
+					api:pool.api,
+					active:((pools[user].default||config.default)===pool.symbol)?1:0
+				});
 
 		socket.emit('coins',coins);
+		}
+
+		if(user === undefined) socket.emit('userlist', Object.keys(pools))
+
 		logger.info("pool config reloaded");
 	});
-	socket.on('user',function(user) {
-		var coins = [];
-		for (var pool of pools[user]) 
-			coins.push({
-				symbol:pool.symbol,
-				login:pool.name.split('.')[0],
-				url:pool.url?pool.url:'',
-				api:pool.api?pool.api:'',
-				active:((pools[user].default||config.default)===pool.symbol)?1:0
-			});
 
-		socket.emit('coins',coins);
-		logger.info('-> current for '+user+': '+(pools[user].default||config.default));
-		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+	socket.on('user',function(user) {
 		if(intervalObj) clearInterval(intervalObj);
-		intervalObj = setInterval(() => {
-			socket.emit('active',(pools[user].default||config.default));
+
+		if(pools[user]) {
+			var coins = [];
+			for (var pool of pools[user]) 
+				coins.push({
+					symbol:pool.symbol,
+					login:pool.name.split('.')[0],
+					url:pool.url?pool.url:'',
+					api:pool.api?pool.api:'',
+					active:((pools[user].default||config.default)===pool.symbol)?1:0
+				});
+
+			socket.emit('coins',coins);
+			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
 			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-		}, 2000);
+			intervalObj = setInterval(() => {
+				socket.emit('active',(pools[user].default||config.default));
+				socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+			}, 2000);
+		} else {
+			logger.info(user + ': Not found!');
+			socket.emit('usererror', "User Not Found!");
+		}
 	});
 
 	socket.on('switch', function(user,coin){

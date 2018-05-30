@@ -8,7 +8,6 @@
 		<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.4.0/jquery.timeago.min.js"></script>
 		
 		<script>
-
 			function getReadableHashRateString(hashrate){
 				var i = 0;
 				var byteUnits = [' H', ' KH', ' MH', ' GH', ' TH', ' PH' ];
@@ -56,7 +55,24 @@
 			var socket;
 			var user;
 			$(function () {
+
 				$('#user').val(docCookies.getItem('login')||'');
+				user = $('#user').val();
+
+				$(document).ready(
+					()=> {
+					socket.emit('reload')
+					$('#userselector').change(
+						()=> {
+						user =  $('#userselector').val();
+						$('#user').val(user);
+						docCookies.setItem('login',user);
+						$('#coins').empty();
+						socket.emit('user',user);
+						}
+					);
+				});
+			
 				socket = io();
 				socket.on('coins',function(coins){
 					$('#coins').empty();
@@ -83,6 +99,16 @@
 							socket.emit('switch',user,this.id.substr(7));
 						});
 					}
+				});
+				socket.on('userlist', (userList) => {
+					$('#userselector').empty();
+					userList.map((user)=> $("<option />", {text: user, value: user}).appendTo("#userselector"));
+					$('#userselector').val($('#user').val());
+					if(user) socket.emit('reload', user);
+				});
+				socket.on('usererror', (errorText) => {
+					$("#userselector").val(null);
+					alert(errorText);
 				});
 				socket.on('active',function(coin){
 					$('.coin > .swit').css('color', 'white');
@@ -170,7 +196,12 @@
 				background-color:blue;
 				color:white;
 			}
-			.menu{
+
+			#userselector {
+				margin: 15px 10px;
+			}
+
+			.menu {
 				margin:20px 10px;
 				padding:0;
 				}
@@ -202,7 +233,8 @@
 	<body>
 
 		<DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
-			<input STYLE="width: 75%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value=""/>
+			<select id='userselector' style='width: 25%; float:left;'></select>
+			<input style="width: 60%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value=""/>
 			<div class="menu">
 				<a id="loaduser" href="javascript:void(0);">Load</a>
 			</div>

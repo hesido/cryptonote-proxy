@@ -7,6 +7,7 @@ const http = require('http');
 const path = require('path');
 const winston = require('winston');
 const BN = require('bignumber.js');
+const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
 
 
@@ -37,6 +38,7 @@ process.on("uncaughtException", function(error) {
 var config = JSON.parse(fs.readFileSync('config.json'));
 const localport = config.workerport;
 var pools = config.pools;
+var pusher ;
 
 var workerhashrates = {};
 
@@ -296,6 +298,10 @@ io.on('connection', function(socket){
 	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
+		if(config.pushbulletApiToken)
+			pusher = new pushbullet(config.pushbulletApiToken);
+			else
+			pusher = null;
 
 		if(pools[user]) {
 			var coins = [];
@@ -348,6 +354,8 @@ io.on('connection', function(socket){
 		pools[user].default=coin;
 		switchEmitter.emit('switch',coin,user);
 		socket.emit('active',coin);
+		if(pusher)
+			pusher.note({}, 'Coin Switched', '->'+coin+' ('+user+')', (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
 	});
 
 	socket.on('disconnect', function(reason){

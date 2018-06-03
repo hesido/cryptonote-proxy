@@ -48,8 +48,9 @@ server.listen(config.httpport,'::');
 function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	var idx;
-	for (var pool in pools[user]) if (pools[user][pool].symbol === coin) idx = pool;
-
+	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
+	pools[user].default = idx;
+	
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
 	var remotesocket = new net.Socket();
@@ -62,10 +63,12 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	remotesocket.on('connect', function (data) {
 		
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
-		
+				
+		passTemplate = pools[user][idx]["passwordtemplate"];
+
 		logger.info('new login to '+coin+' ('+pass+')');
-		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass":pass,"agent":"XMRig/2.5.0"}};
-		remotesocket.write(JSON.stringify(request)+"\n");
+		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
+		remotesocket.write(JSON.stringify(request)+"\n");	
 		
 	});
 	
@@ -269,7 +272,7 @@ const workerserver = net.createServer(function (localsocket) {
 	localsocket.on('close', function(had_error) {
 		
 		if(had_error) 
-			logger.error(error)
+			logger.error(had_error)
 		else
 			workerserver.getConnections(function(err,number){
 				logger.info("worker connection ended - connections left:"+number);
@@ -317,9 +320,26 @@ io.on('connection', function(socket){
 		socket.emit('coins',coins);
 		}
 
-		if(user === undefined) socket.emit('userlist', Object.keys(pools))
+		if(user === undefined) {socket.emit('userlist', Object.keys(pools));};
 
 		logger.info("pool config reloaded");
+	});
+
+	socket.on('getuserlist',function(user) {
+		if(pools[user]) {
+			var coins = [];
+			for (var pool of pools[user]) 
+				coins.push({
+					symbol:pool.symbol,
+					login:pool.name.split('.')[0],
+					url:pool.url,
+					api:pool.api,
+					active:((pools[user].default||config.default)===pool.symbol)?1:0
+				});
+
+		socket.emit('coins',coins);
+		}
+		socket.emit('userlist', Object.keys(pools));
 	});
 
 	socket.on('user',function(user) {
@@ -339,7 +359,7 @@ io.on('connection', function(socket){
 			socket.emit('coins',coins);
 			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
 			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-			intervalObj = setInterval(() => {
+			intervalObj = setInterval(() => {				
 				socket.emit('active',(pools[user].default||config.default));
 				socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 			}, 2000);

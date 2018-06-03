@@ -61,7 +61,7 @@
 
 				$(document).ready(
 					()=> {
-					socket.emit('reload')
+					socket.emit('getuserlist', user);
 					$('#userselector').change(
 						()=> {
 						user =  $('#userselector').val();
@@ -104,13 +104,13 @@
 					$('#userselector').empty();
 					userList.map((user)=> $("<option />", {text: user, value: user}).appendTo("#userselector"));
 					$('#userselector').val($('#user').val());
-					if(user) socket.emit('reload', user);
 				});
 				socket.on('usererror', (errorText) => {
 					$("#userselector").val(null);
 					alert(errorText);
 				});
 				socket.on('active',function(coin){
+					console.log("Active:" + coin)
 					$('.coin > .swit').css('color', 'white');
 					$('#switch_'+coin).css('color', 'red');
 				});

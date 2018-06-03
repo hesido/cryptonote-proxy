@@ -1,5 +1,5 @@
 {
-	"pushbulletApiToken":"", /*your pushbullet api token goes between quotation marks*/
+	"pushbulletApiToken":"",
 	"workerport":2349,
 	"httpport":2350,
 	"default":"nh",

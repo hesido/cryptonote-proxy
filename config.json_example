@@ -2,6 +2,9 @@
 	"pushbulletApiToken":"",
 	"workerport":2349,
 	"httpport":2350,
+	"httpexternalport":"",
+	"httpuser":"",
+	"httppassword":"",
 	"default":"nh",
 	"pools":
 	{

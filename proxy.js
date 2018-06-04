@@ -2,6 +2,7 @@ const net = require("net");
 const events = require('events');
 const fs = require('fs');
 const express = require('express');
+const basicAuth = require('express-basic-auth')
 const app = require('express')();
 const http = require('http');
 const path = require('path');
@@ -9,7 +10,7 @@ const winston = require('winston');
 const BN = require('bignumber.js');
 const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
-
+const publicIp = require('public-ip');
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
@@ -38,7 +39,24 @@ process.on("uncaughtException", function(error) {
 var config = JSON.parse(fs.readFileSync('config.json'));
 const localport = config.workerport;
 var pools = config.pools;
-var pusher ;
+var pusher;
+var externalip;
+
+if(config.pushbulletApiToken)
+	pusher = new pushbullet(config.pushbulletApiToken);
+
+
+if(config.httpuser && config.httppassword) {
+	app.use(
+		basicAuth({
+		users: { [config.httpuser]: config.httppassword },
+		challenge: true
+	}));
+	publicIp.v4().then(ip => {
+		externalip = ip;
+		if(pusher) pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
+	});
+}
 
 var workerhashrates = {};
 
@@ -106,7 +124,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}
 		else if(request.result && request.result.status === 'OK')
 		{
-			logger.info('    share deliverd to '+coin+' '+request.result.status+' ('+pass+')');
+			logger.info('    share delivered to '+coin+' '+request.result.status+' ('+pass+')');
 		}
 		else if(request.method && request.method === 'job')
 		{
@@ -301,8 +319,10 @@ io.on('connection', function(socket){
 	socket.on('reload',function(user) {
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
+
 		if(config.pushbulletApiToken)
-			pusher = new pushbullet(config.pushbulletApiToken);
+			if(!pusher || pusher.pushbullet.ApiToken !== config.pushbulletApiToken)
+				pusher = new pushbullet(config.pushbulletApiToken);
 			else
 			pusher = null;
 

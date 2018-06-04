@@ -18,10 +18,6 @@ const bodyParser = require('body-parser');
 app.use(bodyParser.json()); // support json encoded bodies
 app.use(bodyParser.urlencoded({ extended: true })); // support encoded bodies
 
-app.get('/', function(req, res) {
-	res.sendFile(path.resolve(__dirname+'/index.html'));
-});
-
 const logger = new (winston.Logger)({
 	transports: [
 		new winston.transports.Console({timestamp:(new Date()).toLocaleTimeString(),colorize:true,level:'info'}),
@@ -47,16 +43,22 @@ if(config.pushbulletApiToken)
 
 
 if(config.httpuser && config.httppassword) {
+	logger.info("Activating basic http authentication.");
 	app.use(
 		basicAuth({
 		users: { [config.httpuser]: config.httppassword },
-		challenge: true
+		challenge: true,
+		realm: "minerproxy"
 	}));
-	publicIp.v4().then(ip => {
-		externalip = ip;
-		if(pusher) pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
-	});
+	// publicIp.v4().then(ip => {
+	// 	externalip = ip;
+	// 	if(pusher) pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
+	// });
 }
+
+app.get('/', function(req, res) {
+	res.sendFile(path.resolve(__dirname+'/index.html'));
+});
 
 var workerhashrates = {};
 

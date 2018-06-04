@@ -323,7 +323,7 @@ io.on('connection', function(socket){
 		pools = config.pools;
 
 		if(config.pushbulletApiToken)
-			if(!pusher || pusher.pushbullet.ApiToken !== config.pushbulletApiToken)
+			if(!pusher || pusher.ApiToken !== config.pushbulletApiToken)
 				pusher = new pushbullet(config.pushbulletApiToken);
 			else
 			pusher = null;

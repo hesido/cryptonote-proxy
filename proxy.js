@@ -69,7 +69,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	var idx;
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	pools[user].default = idx;
+	pools[user].default = pools[user][idx].symbol;
 	
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
@@ -397,7 +397,7 @@ io.on('connection', function(socket){
 		switchEmitter.emit('switch',coin,user);
 		socket.emit('active',coin);
 		if(pusher)
-			pusher.note({}, 'Coin Switched', '->'+coin+' ('+user+')', (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
+			pusher.note({}, `${user} coin switch` , `Switched to "${coin}/n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
 	});
 
 	socket.on('disconnect', function(reason){

@@ -359,12 +359,14 @@ io.on('connection', function(socket){
 					active:((pools[user].default||config.default)===pool.symbol)?1:0
 				});
 
-		socket.emit('coins',coins);
+		respondToUser(user);
 		}
 		socket.emit('userlist', Object.keys(pools));
 	});
 
-	socket.on('user',function(user) {
+	socket.on('user',respondToUser);
+
+	function respondToUser(user) {
 		if(intervalObj) clearInterval(intervalObj);
 
 		if(pools[user]) {
@@ -389,7 +391,8 @@ io.on('connection', function(socket){
 			logger.info(user + ': Not found!');
 			socket.emit('usererror', "User Not Found!");
 		}
-	});
+	}
+
 
 	socket.on('switch', function(user,coin){
 		logger.info('->'+coin+' ('+user+')');
@@ -397,7 +400,7 @@ io.on('connection', function(socket){
 		switchEmitter.emit('switch',coin,user);
 		socket.emit('active',coin);
 		if(pusher)
-			pusher.note({}, `${user} coin switch` , `Switched to "${coin}/n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
+			pusher.note({}, `${user} coin switch` , `Switched to ${coin}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
 	});
 
 	socket.on('disconnect', function(reason){

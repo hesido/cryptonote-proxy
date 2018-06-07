@@ -61,7 +61,7 @@
 
 				$(document).ready(
 					()=> {
-					socket.emit('getuserlist', user);
+					socket.emit('getruntimesettings', user);
 					$('#userselector').change(
 						()=> {
 						user =  $('#userselector').val();
@@ -71,6 +71,9 @@
 						socket.emit('user',user);
 						}
 					);
+					$("#uisettings :checkbox").change(function() {
+						socket.emit('setruntimesetting',this.id.substr(6), this.checked)
+						});
 				});
 			
 				socket = io();
@@ -100,10 +103,18 @@
 						});
 					}
 				});
-				socket.on('userlist', (userList) => {
+				socket.on('runtimesettings', (runtimesettings) => {
 					$('#userselector').empty();
-					userList.map((user)=> $("<option />", {text: user, value: user}).appendTo("#userselector"));
+					runtimesettings.userList.map((user)=> $("<option />", {text: user, value: user}).appendTo("#userselector"));
 					$('#userselector').val($('#user').val());
+					var uiSettings = Object.keys(runtimesettings.UIset);
+					$("label.settinglabel").hide();
+					uiSettings.map((settingId) => {
+						console.log(settingId);
+						$("label[for='UIset_" + settingId +"']").show();
+						$("input#UIset_" + settingId).prop("checked",  runtimesettings.UIset[settingId]);
+					});
+					
 				});
 				socket.on('usererror', (errorText) => {
 					$("#userselector").val(null);
@@ -166,7 +177,16 @@
 		</script>
 		
 		<link rel="icon" href="favicon.ico" type="image/x-icon">
-		<STYLE TYPE="text/css">
+		<style type="text/css">
+
+			#uisettings{
+				clear:both;
+				text-align: left;
+			}
+			label.settinglabel{
+				font-size: 60%;
+				display: none;
+			}
 			a{
 				color:#ff0000;
 				text-decoration:none;
@@ -196,11 +216,9 @@
 				background-color:blue;
 				color:white;
 			}
-
 			#userselector {
 				margin: 15px 10px;
 			}
-
 			.menu {
 				margin:20px 10px;
 				padding:0;
@@ -232,11 +250,16 @@
 	</head>
 	<body>
 
-		<DIV STYLE="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
+		<div style="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
 			<select id='userselector' style='width: 25%; float:left;'></select>
 			<input style="width: 60%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value=""/>
 			<div class="menu">
 				<a id="loaduser" href="javascript:void(0);">Load</a>
+				<div id='uisettings'>
+					<label class="settinglabel" for="UIset_usePushMessaging">Use push messages
+						<input id="UIset_usePushMessaging" type="checkbox">
+					</label>
+				</div>
 			</div>
 
 			<table id="coins"></table>
@@ -246,7 +269,7 @@
 			</div>
 			
 			<div class="workers" id="workers"></div>
-		</DIV>
+		</div>
 
 	</body>
 </html>

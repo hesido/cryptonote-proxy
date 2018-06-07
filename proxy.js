@@ -5,12 +5,12 @@ const express = require('express');
 const basicAuth = require('express-basic-auth')
 const app = require('express')();
 const http = require('http');
+const https = require('https');
 const path = require('path');
 const winston = require('winston');
 const BN = require('bignumber.js');
 const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
-const publicIp = require('public-ip');
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
@@ -38,9 +38,16 @@ var pools = config.pools;
 var pusher;
 var externalip;
 
+const runTimeSettings = {
+	UIset: {},
+	userList: {},
+};
+
+//Only add this when necessary, present keys enable the setting on the UI (so if this is not enabled, checkbox is disabled in the frontend.)
+if(config.pushbulletApiToken) runTimeSettings.UIset.usePushMessaging = true;
+
 if(config.pushbulletApiToken)
 	pusher = new pushbullet(config.pushbulletApiToken);
-
 
 if(config.httpuser && config.httppassword) {
 	logger.info("Activating basic http authentication.");
@@ -50,10 +57,13 @@ if(config.httpuser && config.httppassword) {
 		challenge: true,
 		realm: "minerproxy"
 	}));
-	// publicIp.v4().then(ip => {
-	// 	externalip = ip;
-	// 	if(pusher) pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
-	// });
+	if(pusher) {
+		https.get({'host': 'api.ipify.org', 'path': '/'}, function(resp) {
+		resp.on('data', function(externalip) {
+			pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
+		});
+	});
+	}
 }
 
 app.get('/', function(req, res) {
@@ -81,7 +91,6 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var shares=0;
 
 	remotesocket.on('connect', function (data) {
-		
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 				
 		passTemplate = pools[user][idx]["passwordtemplate"];
@@ -89,7 +98,6 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		logger.info('new login to '+coin+' ('+pass+')');
 		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
 		remotesocket.write(JSON.stringify(request)+"\n");	
-		
 	});
 	
 	remotesocket.on('data', function(data) {
@@ -102,20 +110,13 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		if(request.result && request.result.job)
 		{
 			var mybuf = new  Buffer(request.result.job.target, "hex");
-			
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
-			
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
-
 			setWorker(request.result.id);
-
 			if(! firstConn)
 			{
-
 				logger.info('  new job from login reply ('+pass+')');
 				var job = request.result.job;
-
-				
 				request = {
 								"jsonrpc":"2.0",
 								"method":"job",
@@ -322,11 +323,14 @@ io.on('connection', function(socket){
 		config = JSON.parse(fs.readFileSync('config.json'));
 		pools = config.pools;
 
-		if(config.pushbulletApiToken)
-			if(!pusher || pusher.ApiToken !== config.pushbulletApiToken)
+		if(config.pushbulletApiToken) {
+				runTimeSettings.UIset.usePushMessaging = true;
+				if(!pusher || pusher.ApiToken !== config.pushbulletApiToken)
 				pusher = new pushbullet(config.pushbulletApiToken);
-			else
+			} else {
 			pusher = null;
+			delete runTimeSettings.UIset.usePushMessaging;
+			}
 
 		if(pools[user]) {
 			var coins = [];
@@ -342,12 +346,14 @@ io.on('connection', function(socket){
 		socket.emit('coins',coins);
 		}
 
-		if(user === undefined) {socket.emit('userlist', Object.keys(pools));};
+		runTimeSettings.userList = Object.keys(pools);
+
+		socket.emit('runtimesettings', runTimeSettings);
 
 		logger.info("pool config reloaded");
 	});
 
-	socket.on('getuserlist',function(user) {
+	socket.on('getruntimesettings',function(user) {
 		if(pools[user]) {
 			var coins = [];
 			for (var pool of pools[user]) 
@@ -361,7 +367,10 @@ io.on('connection', function(socket){
 
 		respondToUser(user);
 		}
-		socket.emit('userlist', Object.keys(pools));
+
+		runTimeSettings.userList = Object.keys(pools);
+		
+		socket.emit('runtimesettings', runTimeSettings);
 	});
 
 	socket.on('user',respondToUser);
@@ -393,18 +402,22 @@ io.on('connection', function(socket){
 		}
 	}
 
-
 	socket.on('switch', function(user,coin){
 		logger.info('->'+coin+' ('+user+')');
 		pools[user].default=coin;
 		switchEmitter.emit('switch',coin,user);
 		socket.emit('active',coin);
-		if(pusher)
+		if(pusher && runTimeSettings.UIset.usePushMessaging)
 			pusher.note({}, `${user} coin switch` , `Switched to ${coin}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
 	});
 
 	socket.on('disconnect', function(reason){
 		if(intervalObj) clearInterval(intervalObj);
 	});
+
+	socket.on('setruntimesetting', function(settingproperty, value) {
+		runTimeSettings.UIset[settingproperty] = value;
+		logger.info("Setting " + settingproperty + " changed to " + value);
+	} );
 
 });

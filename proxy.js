@@ -11,6 +11,7 @@ const winston = require('winston');
 const BN = require('bignumber.js');
 const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
+const coinMethods = require('./coin.js');
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
@@ -36,7 +37,10 @@ var config = JSON.parse(fs.readFileSync('config.json'));
 const localport = config.workerport;
 var pools = config.pools;
 var pusher;
-var externalip;
+
+
+var minedCoin = new coinMethods.Coin();
+
 
 const runTimeSettings = {
 	UIset: {},
@@ -78,6 +82,20 @@ server.listen(config.httpport,'::');
 function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	var idx;
+
+	if(!pools[user].coins) {
+		pools[user].coins = [];
+		for (var pool in pools[user]) {
+			idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
+			let pool = pools[user][pool];
+			coins.push(new minedCoin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
+				baseurl: pool.ticker.baseurl || config.baseurl,
+				marketname: pool.ticker.marketname,
+				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
+			}));
+		}
+	};
+
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
 	pools[user].default = pools[user][idx].symbol;
 	

@@ -38,9 +38,16 @@ const localport = config.workerport;
 var pools = config.pools;
 var pusher;
 
+/**
+ * @type CoinMethods.Coin
+ */
+var testCoin = new coinMethods.Coin("","","","","",{
+	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
+	jsonpath: "price",
+	marketname: "btc-loki"
+})
 
-var minedCoin = new coinMethods.Coin();
-
+testCoin.FetchMarketValue().then((result) => console.log(result));
 
 const runTimeSettings = {
 	UIset: {},
@@ -88,8 +95,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		for (var pool in pools[user]) {
 			idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
 			let pool = pools[user][pool];
-			coins.push(new minedCoin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
-				baseurl: pool.ticker.baseurl || config.baseurl,
+			pools[user].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
+				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
 				marketname: pool.ticker.marketname,
 				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
 			}));

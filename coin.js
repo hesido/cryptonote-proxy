@@ -1,16 +1,20 @@
+ 'use strict'
+const axios = require('axios');
+
 
 var CoinMethods = {
-
 /**
+ * @typedef { {symbol: string, name: string, login: string, url: string, active: boolean, network: object, ticker: string, marketvalue: Coin} } Coin
+ * @typedef { {hashrate: number, difficulty: number, poolblockheight: number, blockheight: number, effort: number, lastblockdatetime: Date } } CoinNetwork
+ * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean} } Ticker
+ */
+
+ /**
  * @param {Coin[]} [coins] - Array of coins
  */
 getPreferredCoin : function(coins) {
 
 },
-
-/**
- * @typedef { {symbol: string, name: string, login: string, url: string, active: boolean, network: object, ticker: string, marketvalue: object} } Coin
- */
 
 
 Coin: class { 
@@ -20,7 +24,7 @@ Coin: class {
  * @param {string} [walletaddress]
  * @param {string} [url]
  * @param {string} [api]
- * @param {string} [ticker]
+ * @param {Ticker} [ticker]
  */
     constructor(symbol, name, walletaddress, url, api, ticker) {
       this.symbol = symbol;
@@ -29,22 +33,25 @@ Coin: class {
       this.url = url;
       this.active = false;
       this.api = api;
-      this.network = {
-          hashrate : 0,
-          lastblockdatetime : 0,
-          difficulty : 0,
-          poolblockheight : 0,
-          blockheight : 0,
-          effort : 0,
-      };
+      /**
+      * @type {CoinNetwork}
+      */ 
+      this.network = {};
       this.ticker = ticker;
-      this.marketvalue = {
-        btc: 0
-      };
+      this.marketvalue = 0;
     }
+  },
 
+  async FetchMarketValue() {
+    try {
+      this.ticker.hasError = false;
+      return (await axios.get(this.ticker.apibaseurl + this.ticker.marketname))[this.ticker.jsonpath]
+    }
+    catch(error) {
+      Console.log(error);
+      this.ticker.hasError = true;
+    }
   }
-
 }
 
   module.exports = CoinMethods;

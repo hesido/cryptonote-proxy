@@ -39,7 +39,7 @@ var pools = config.pools;
 var pusher;
 
 /**
- * @type CoinMethods.Coin
+ * @type coinMethods::Coin
  */
 var testCoin = new coinMethods.Coin("","","","","",{
 	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
@@ -47,7 +47,14 @@ var testCoin = new coinMethods.Coin("","","","","",{
 	marketname: "btc-loki"
 })
 
-testCoin.FetchMarketValue().then((result) => console.log(result));
+var testCoin2 = new coinMethods.Coin("","","","","",{
+	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
+	jsonpath: "price",
+	marketname: "btc-solace"
+})
+
+//testCoin.FetchMarketValue().then((result) => console.log(result));
+Promise.all([testCoin.FetchMarketValue(), testCoin2.FetchMarketValue()]).then((result) => console.log(result));
 
 const runTimeSettings = {
 	UIset: {},

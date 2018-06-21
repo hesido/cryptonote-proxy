@@ -38,23 +38,13 @@ const localport = config.workerport;
 var pools = config.pools;
 var pusher;
 
-/**
- * @type coinMethods::Coin
- */
-var testCoin = new coinMethods.Coin("","","","","",{
+var testCoin = new coinMethods.Coin("","","","","https://haven.miner.rocks/api/",{
 	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
 	jsonpath: "price",
 	marketname: "btc-loki"
 })
 
-var testCoin2 = new coinMethods.Coin("","","","","",{
-	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
-	jsonpath: "price",
-	marketname: "btc-solace"
-})
-
-//testCoin.FetchMarketValue().then((result) => console.log(result));
-Promise.all([testCoin.FetchMarketValue(), testCoin2.FetchMarketValue()]).then((result) => console.log(result));
+Promise.all([testCoin.FetchMarketValue(), testCoin.FetchNetworkDetails()]).then(console.log(testCoin));
 
 const runTimeSettings = {
 	UIset: {},

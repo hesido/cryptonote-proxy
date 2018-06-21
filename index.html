@@ -93,7 +93,7 @@
 											'<td class="swit" id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</td>'+ 
 											'<td class="diff"></td>'+
 											'<td class="netblock"></td>'+
-											'<td>'+(coin.url?('<a target="_blank" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </td>'+
+											'<td>'+(coin.url?('<a target="_blank" class="pool" href="'+coin.url.replace(/\/$/,"") + '/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </td>'+
 										'</tr>'));
 						if(coin.active)
 							$('#switch_'+coin.symbol).css('color', 'red');

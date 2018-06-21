@@ -1,11 +1,12 @@
- 'use strict'
+'use strict'
 const axios = require('axios');
+const urljoin = require('url-join');
 
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, name: string, login: string, url: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number} } Coin
- * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, effort: number, lastblockdatetime: Date } } CoinNetwork
+ * @typedef { {symbol: string, name: string, login: string, url: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, hasError: boolean } } CoinNetwork
  * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean} } Ticker
  */
 
@@ -40,16 +41,14 @@ Coin: class {
       this.ticker = ticker;
       this.coinunit = 10000000;
       this.marketvalue = 0;
+      this.rewardperday = 0;
     }
 
     async FetchMarketValue() {
       try {
         this.ticker.hasError = false;
-        console.log(this.ticker.apibaseurl + this.ticker.marketname);
-        
-        let response = await axios.get(this.ticker.apibaseurl + this.ticker.marketname);
 
-        console.log(response.data.error);
+        let response = await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.marketname));
 
         if(response.data.error) {throw new Error("API response error")};
 
@@ -59,6 +58,31 @@ Coin: class {
         console.log(error);
         this.ticker.hasError = true;
         this.marketvalue = 0;
+      }
+    }
+
+    async FetchNetworkDetails() {
+      try {
+        this.network.hasError = false;
+        let response = await axios.get(urljoin(this.api, "stats"));
+
+        console.log(response.data.error);
+
+        if(response.data.error) {throw new Error("API response error")};
+
+        this.network.difficulty = response.data.network.difficulty;
+        this.network.blockheight = response.data.network.height;
+        this.network.lastblockdatetime = response.data.network.timestamp;
+        this.coinunit = response.data.config.coinUnits || this.coinunit;
+        console.log(response.data.network.reward);
+        console.log(response.data.network.fee || 0);
+        console.log(response.data.network.coinbase);
+        console.log(this.coinunit);
+        this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
+      }
+      catch(error) {
+        console.log(error);
+        this.network.hasError = true;
       }
     }
   },

@@ -5,7 +5,7 @@ const urljoin = require('url-join');
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, name: string, login: string, url: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {symbol: string, name: string, login: string, url: string, api: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, hasError: boolean } } CoinNetwork
  * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean} } Ticker
  */
@@ -67,6 +67,7 @@ Coin: class {
         let response = await axios.get(urljoin(this.api, "stats"));
 
         console.log(response.data.error);
+        let hashrate = 1;
 
         if(response.data.error) {throw new Error("API response error")};
 
@@ -79,6 +80,7 @@ Coin: class {
         console.log(response.data.network.coinbase);
         console.log(this.coinunit);
         this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
+        this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
       }
       catch(error) {
         console.log(error);

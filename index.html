@@ -81,18 +81,26 @@
 					$('#coins').empty();
 					$('#coins').append($(
 									'<tr class="coin">'+ 
-										'<td></td>'+ 
+										'<td>Coin</td>'+ 
 										'<td>Nethash</td>'+
 										'<td>LastBlock</td>'+
-										'<td></td>'+
+										'<td>Difficulty</td>'+
+										'<td>Market Value</td>'+
+										'<td>Daily Earning</td>'+
+										'<td>Daily Earning (BTC)</td>'+
+										'<td>Pool</td>'+
 									'</tr>'));
 
 					for (var coin of coins){
 						$('#coins').append($(
-										'<tr class="coin" data-api="'+coin.api+'">'+ 
+										'<tr class="coin">'+ 
 											'<td class="swit" id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</td>'+ 
-											'<td class="diff"></td>'+
+											'<td class="hashrate"></td>'+
 											'<td class="netblock"></td>'+
+											'<td class="difficulty"></td>'+
+											'<td class="marketvalue"></td>'+
+											'<td class="dailyearning"></td>'+
+											'<td class="dailybtcearning"></td>'+
 											'<td>'+(coin.url?('<a target="_blank" class="pool" href="'+coin.url.replace(/\/$/,"") + '/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </td>'+
 										'</tr>'));
 						if(coin.active)
@@ -102,6 +110,8 @@
 							socket.emit('switch',user,this.id.substr(7));
 						});
 					}
+
+					//CoinsToTable(coins);
 				});
 				socket.on('runtimesettings', (runtimesettings) => {
 					$('#userselector').empty();
@@ -136,6 +146,8 @@
 					}
 					$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
 				});
+				socket.on('coinsupdate', CoinsToTable);
+
 				$('#rel').click(function(){
 					user =  $('#user').val();
 					$('#coins').empty();
@@ -148,28 +160,40 @@
 					socket.emit('user',user);
 				});
 
+				function CoinsToTable(coins){
+					for (var coin of coins) {
+						let hashrate = 1;
+						var seconds = new Date().getTime() / 1000;
+						row.find( ".hashrate"    ).text(getReadableHashRateString(coin.network.difficulty / coin.network.coinDifficultyTarget) + '/sec');
+						row.find( ".netblock"    ).text((seconds - coin.network.lastblockdatetime).toFixed(0)+'s');
+						row.find( ".difficulty"  ).text(coin.network.difficulty);
+						row.find( ".marketvalue" ).text(coin.marketvalue + " BTC");
+						row.find( ".dailyearning").text(coin.rewardperday);
+						row.find( ".dailybtcearning" ).text(coin.rewardperday * coin.marketvalue);
+					}
+				}
 
-				setInterval(() => {
+				// setInterval(() => {
 			
-					$( ".coin" ).each(function() {
-						if($( this ).data('api'))
-						{
-							var row = $( this );
+				// 	$( ".coin" ).each(function() {
+				// 		if($( this ).data('api'))
+				// 		{
+				// 			var row = $( this );
 
-							$.ajax({
-								url: row.data('api') + '/stats',
-								dataType: 'json',
-								cache: 'false'
-							}).done(function(data){
-								var seconds = new Date().getTime() / 1000;
+				// 			$.ajax({
+				// 				url: row.data('api') + '/stats',
+				// 				dataType: 'json',
+				// 				cache: 'false'
+				// 			}).done(function(data){
+				// 				var seconds = new Date().getTime() / 1000;
 								
-								row.find( ".diff" ).text(getReadableHashRateString(data.network.difficulty / data.config.coinDifficultyTarget) + '/sec');
-								row.find( ".netblock" ).text( (seconds - data.network.timestamp).toFixed(0)+'s');
+				// 				row.find( ".hashrate" ).text(getReadableHashRateString(data.network.difficulty / data.config.coinDifficultyTarget) + '/sec');
+				// 				row.find( ".netblock" ).text( (seconds - data.network.timestamp).toFixed(0)+'s');
 
-							});
-						}
-					});
-				}, 5000);
+				// 			});
+				// 		}
+				// 	});
+				// }, 5000);
 			});
 
 

@@ -91,7 +91,6 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		pools[user].coins = [];
 		for (var pool in pools[user]) {
 			idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-			let pool = pools[user][pool];
 			pools[user].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
 				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
 				marketname: pool.ticker.marketname,
@@ -401,23 +400,42 @@ io.on('connection', function(socket){
 		if(intervalObj) clearInterval(intervalObj);
 
 		if(pools[user]) {
-			var coins = [];
-			for (var pool of pools[user]) 
-				coins.push({
-					symbol:pool.symbol,
-					login:pool.name.split('.')[0],
-					url:pool.url?pool.url:'',
-					api:pool.api?pool.api:'',
-					active:((pools[user].default||config.default)===pool.symbol)?1:0
-				});
+			/* put pool coins push in a function, it is used twice */		
+			if(!pools[user].coins) {
+				pools[user].coins = [];
+				for (var pool in pools[user]) {
+//					idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
+					if(pool.name) {
+					pools[user].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
+						apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
+						marketname: pool.ticker.marketname,
+						jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
+					}));
+					};
+				}
+			};
+			// for (var pool of pools[user]) 
+			// 	coins.push({
+			// 		symbol:pool.symbol,
+			// 		login:pool.name.split('.')[0],
+			// 		url:pool.url?pool.url:'',
+			// 		api:pool.api?pool.api:'',
+			// 		active:((pools[user].default||config.default)===pool.symbol)?1:0
+			// 	});
 
-			socket.emit('coins',coins);
+			socket.emit('coins',pools[user].coins);
 			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
 			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-			intervalObj = setInterval(() => {				
-				socket.emit('active',(pools[user].default||config.default));
-				socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-			}, 2000);
+
+			var promiseChain = [];
+			for (let coin of pools[user].coins) {
+				promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
+			}
+			Promise.all(promiseChain).then(() => socket.emit('coinsupdate'), pools[user].coins);
+			// intervalObj = setInterval(() => {				
+			// 	socket.emit('active',(pools[user].default||config.default));
+			// 	socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+			// }, 2000);
 		} else {
 			logger.info(user + ': Not found!');
 			socket.emit('usererror', "User Not Found!");

@@ -38,13 +38,14 @@ Coin: class {
       * @type {CoinNetwork}
       */
       this.network = {};
-      this.ticker = ticker;
-      this.coinunit = 10000000;
+      this.ticker = ticker || {};
+      this.coinunit = 1000000000;
       this.marketvalue = 0;
       this.rewardperday = 0;
     }
 
     async FetchMarketValue() {
+      if (!this.ticker || !this.ticker.apibaseurl || !this.ticker.marketname) return false;
       try {
         this.ticker.hasError = false;
 
@@ -65,8 +66,6 @@ Coin: class {
       try {
         this.network.hasError = false;
         let response = await axios.get(urljoin(this.api, "stats"));
-
-        console.log(response.data.error);
         let hashrate = 1;
 
         if(response.data.error) {throw new Error("API response error")};
@@ -75,10 +74,6 @@ Coin: class {
         this.network.blockheight = response.data.network.height;
         this.network.lastblockdatetime = response.data.network.timestamp;
         this.coinunit = response.data.config.coinUnits || this.coinunit;
-        console.log(response.data.network.reward);
-        console.log(response.data.network.fee || 0);
-        console.log(response.data.network.coinbase);
-        console.log(this.coinunit);
         this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
         this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
       }

@@ -78,6 +78,7 @@
 			
 				socket = io();
 				socket.on('coins',function(coins){
+					console.log("coins socket");
 					$('#coins').empty();
 					$('#coins').append($(
 									'<tr class="coin">'+ 
@@ -93,7 +94,7 @@
 
 					for (var coin of coins){
 						$('#coins').append($(
-										'<tr class="coin">'+ 
+										'<tr class="coin" id="row_'+coin.symbol+'">' +
 											'<td class="swit" id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</td>'+ 
 											'<td class="hashrate"></td>'+
 											'<td class="netblock"></td>'+
@@ -114,6 +115,7 @@
 					//CoinsToTable(coins);
 				});
 				socket.on('runtimesettings', (runtimesettings) => {
+					console.log("runtime settings socket");
 					$('#userselector').empty();
 					runtimesettings.userList.map((user)=> $("<option />", {text: user, value: user}).appendTo("#userselector"));
 					$('#userselector').val($('#user').val());
@@ -161,9 +163,12 @@
 				});
 
 				function CoinsToTable(coins){
+					console.log("Coins to table");
+					console.log(coins);
 					for (var coin of coins) {
 						let hashrate = 1;
 						var seconds = new Date().getTime() / 1000;
+						row = $("#row_" + coin.symbol);
 						row.find( ".hashrate"    ).text(getReadableHashRateString(coin.network.difficulty / coin.network.coinDifficultyTarget) + '/sec');
 						row.find( ".netblock"    ).text((seconds - coin.network.lastblockdatetime).toFixed(0)+'s');
 						row.find( ".difficulty"  ).text(coin.network.difficulty);

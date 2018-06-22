@@ -38,18 +38,34 @@ const localport = config.workerport;
 var pools = config.pools;
 var pusher;
 
-var testCoin = new coinMethods.Coin("","","","","https://haven.miner.rocks/api/",{
-	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
-	jsonpath: "price",
-	marketname: "btc-loki"
-})
+// var testCoin = new coinMethods.Coin("","","","","https://haven.miner.rocks/api/",{
+// 	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
+// 	jsonpath: "price",
+// 	marketname: "btc-loki"
+// })
 
-Promise.all([testCoin.FetchMarketValue(), testCoin.FetchNetworkDetails()]).then(console.log(testCoin));
+// //Promise.all([testCoin.FetchMarketValue(), testCoin.FetchNetworkDetails()]).then(console.log(testCoin));
 
 const runTimeSettings = {
 	UIset: {},
-	userList: {},
+	userList: Object.keys(pools),
 };
+
+const poolSettings = {};
+
+runTimeSettings.userList.map((username) =>
+	{
+		poolSettings[username] = {};
+		poolSettings[username].coins = [];
+		for (var poolid in pools[username]) {
+			let pool = pools[username][poolid];
+			poolSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, pool.ticker && {
+				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
+				marketname: pool.ticker.marketname,
+				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
+			}));
+		}
+	});
 
 //Only add this when necessary, present keys enable the setting on the UI (so if this is not enabled, checkbox is disabled in the frontend.)
 if(config.pushbulletApiToken) runTimeSettings.UIset.usePushMessaging = true;
@@ -84,23 +100,10 @@ logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
 function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
-
 	var idx;
 
-	if(!pools[user].coins) {
-		pools[user].coins = [];
-		for (var pool in pools[user]) {
-			idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-			pools[user].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
-				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
-				marketname: pool.ticker.marketname,
-				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
-			}));
-		}
-	};
-
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	pools[user].default = pools[user][idx].symbol;
+	poolSettings[user].default = pools[user][idx].symbol;
 	
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
@@ -375,21 +378,7 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('getruntimesettings',function(user) {
-		if(pools[user]) {
-			var coins = [];
-			for (var pool of pools[user]) 
-				coins.push({
-					symbol:pool.symbol,
-					login:pool.name.split('.')[0],
-					url:pool.url,
-					api:pool.api,
-					active:((pools[user].default||config.default)===pool.symbol)?1:0
-				});
-
-		respondToUser(user);
-		}
-
-		runTimeSettings.userList = Object.keys(pools);
+		if(pools[user]) respondToUser(user);
 		
 		socket.emit('runtimesettings', runTimeSettings);
 	});
@@ -399,39 +388,19 @@ io.on('connection', function(socket){
 	function respondToUser(user) {
 		if(intervalObj) clearInterval(intervalObj);
 
-		if(pools[user]) {
-			/* put pool coins push in a function, it is used twice */		
-			if(!pools[user].coins) {
-				pools[user].coins = [];
-				for (var pool in pools[user]) {
-//					idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-					if(pool.name) {
-					pools[user].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, {
-						apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
-						marketname: pool.ticker.marketname,
-						jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
-					}));
-					};
-				}
-			};
-			// for (var pool of pools[user]) 
-			// 	coins.push({
-			// 		symbol:pool.symbol,
-			// 		login:pool.name.split('.')[0],
-			// 		url:pool.url?pool.url:'',
-			// 		api:pool.api?pool.api:'',
-			// 		active:((pools[user].default||config.default)===pool.symbol)?1:0
-			// 	});
-
-			socket.emit('coins',pools[user].coins);
+		if(poolSettings[user]) {
+			socket.emit('coins',poolSettings[user].coins);
 			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
 			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
 
 			var promiseChain = [];
-			for (let coin of pools[user].coins) {
+			for (let coin of poolSettings[user].coins) {
 				promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
 			}
-			Promise.all(promiseChain).then(() => socket.emit('coinsupdate'), pools[user].coins);
+			console.log(poolSettings[user].coins);
+			Promise.all(promiseChain).then(() => socket.emit('coinsupdate', poolSettings[user].coins));
+
+			
 			// intervalObj = setInterval(() => {				
 			// 	socket.emit('active',(pools[user].default||config.default));
 			// 	socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);

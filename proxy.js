@@ -33,9 +33,6 @@ process.on("uncaughtException", function(error) {
 	logger.error(error);
 });
 
-var config = JSON.parse(fs.readFileSync('config.json'));
-const localport = config.workerport;
-var pools = config.pools;
 var pusher;
 
 // var testCoin = new coinMethods.Coin("","","","","https://haven.miner.rocks/api/",{
@@ -46,32 +43,13 @@ var pusher;
 
 // //Promise.all([testCoin.FetchMarketValue(), testCoin.FetchNetworkDetails()]).then(console.log(testCoin));
 
-const runTimeSettings = {
-	UIset: {},
-	userList: Object.keys(pools),
-};
-
+const runTimeSettings = {UIset: {}, userList: []};
 const poolSettings = {};
-
-runTimeSettings.userList.map((username) =>
-	{
-		poolSettings[username] = {};
-		poolSettings[username].coins = [];
-		for (var poolid in pools[username]) {
-			let pool = pools[username][poolid];
-			poolSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, pool.ticker && {
-				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
-				marketname: pool.ticker.marketname,
-				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
-			}));
-		}
-	});
-
-//Only add this when necessary, present keys enable the setting on the UI (so if this is not enabled, checkbox is disabled in the frontend.)
-if(config.pushbulletApiToken) runTimeSettings.UIset.usePushMessaging = true;
-
-if(config.pushbulletApiToken)
-	pusher = new pushbullet(config.pushbulletApiToken);
+var config;
+var workerhashrates = {};
+EvaluateConfig();
+InitializeCoins();
+const localport = config.workerport;
 
 if(config.httpuser && config.httppassword) {
 	logger.info("Activating basic http authentication.");
@@ -93,8 +71,6 @@ if(config.httpuser && config.httppassword) {
 app.get('/', function(req, res) {
 	res.sendFile(path.resolve(__dirname+'/index.html'));
 });
-
-var workerhashrates = {};
 
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
@@ -130,7 +106,6 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 		var request = JSON.parse(data);
 		
-
 		if(request.result && request.result.job)
 		{
 			var mybuf = new  Buffer(request.result.job.target, "hex");
@@ -341,38 +316,19 @@ logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
 	
-	var intervalObj;
+	var timeoutObj;
 
 	socket.on('reload',function(user) {
-		config = JSON.parse(fs.readFileSync('config.json'));
-		pools = config.pools;
+		EvaluateConfig();
+		InitializeCoins();
 
-		if(config.pushbulletApiToken) {
-				runTimeSettings.UIset.usePushMessaging = true;
-				if(!pusher || pusher.ApiToken !== config.pushbulletApiToken)
-				pusher = new pushbullet(config.pushbulletApiToken);
-			} else {
-			pusher = null;
-			delete runTimeSettings.UIset.usePushMessaging;
-			}
-
-		if(pools[user]) {
-			var coins = [];
-			for (var pool of pools[user]) 
-				coins.push({
-					symbol:pool.symbol,
-					login:pool.name.split('.')[0],
-					url:pool.url,
-					api:pool.api,
-					active:((pools[user].default||config.default)===pool.symbol)?1:0
-				});
-
-		socket.emit('coins',coins);
+		if(poolSettings[user]) {
+			socket.emit('coins',poolSettings[user].coins);
 		}
 
-		runTimeSettings.userList = Object.keys(pools);
-
 		socket.emit('runtimesettings', runTimeSettings);
+
+		if(user) respondToUser(user);
 
 		logger.info("pool config reloaded");
 	});
@@ -386,7 +342,7 @@ io.on('connection', function(socket){
 	socket.on('user',respondToUser);
 
 	function respondToUser(user) {
-		if(intervalObj) clearInterval(intervalObj);
+		if(timeoutObj) clearTimeout(timeoutObj);
 
 		if(poolSettings[user]) {
 			socket.emit('coins',poolSettings[user].coins);
@@ -399,16 +355,24 @@ io.on('connection', function(socket){
 			}
 			console.log(poolSettings[user].coins);
 			Promise.all(promiseChain).then(() => socket.emit('coinsupdate', poolSettings[user].coins));
-
 			
-			// intervalObj = setInterval(() => {				
-			// 	socket.emit('active',(pools[user].default||config.default));
-			// 	socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-			// }, 2000);
+			timeoutObj = setTimeout(updateUI, 4000, user);
 		} else {
 			logger.info(user + ': Not found!');
 			socket.emit('usererror', "User Not Found!");
 		}
+	}
+
+	async function updateUI(user) {
+		var promiseChain = [];
+		for (let coin of poolSettings[user].coins) {
+			promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
+		}
+		socket.emit('active',(poolSettings[user].default||config.default));
+		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+		socket.emit('coinsupdate',poolSettings[user].coins);
+		timeoutObj = setTimeout(updateUI, 4000, user);
+		console.trace();
 	}
 
 	socket.on('switch', function(user,coin){
@@ -421,7 +385,7 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('disconnect', function(reason){
-		if(intervalObj) clearInterval(intervalObj);
+		if(timeoutObj) clearTimeout(timeoutObj);
 	});
 
 	socket.on('setruntimesetting', function(settingproperty, value) {
@@ -430,3 +394,34 @@ io.on('connection', function(socket){
 	} );
 
 });
+
+function EvaluateConfig() {
+	config = JSON.parse(fs.readFileSync('config.json'));
+	pools = config.pools;
+
+	if (config.pushbulletApiToken) {
+		runTimeSettings.UIset.usePushMessaging = true;
+		if (!pusher || pusher.ApiToken !== config.pushbulletApiToken)
+			pusher = new pushbullet(config.pushbulletApiToken);
+	}
+	else {
+		pusher = null;
+		delete runTimeSettings.UIset.usePushMessaging;
+	}
+}
+
+function InitializeCoins() {
+	runTimeSettings.userList = Object.keys(pools),
+	runTimeSettings.userList.map((username) => {
+		poolSettings[username] = {};
+		poolSettings[username].coins = [];
+		for (var poolid in pools[username]) {
+			let pool = pools[username][poolid];
+			poolSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, pool.ticker && {
+				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
+				marketname: pool.ticker.marketname,
+				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
+			}));
+		}
+	});
+}

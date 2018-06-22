@@ -86,9 +86,9 @@
 										'<td>Nethash</td>'+
 										'<td>LastBlock</td>'+
 										'<td>Difficulty</td>'+
-										'<td>Market Value</td>'+
+										'<td>BTC Value</td>'+
 										'<td>Daily Earning</td>'+
-										'<td>Daily Earning (BTC)</td>'+
+										'<td>Daily BTC</td>'+
 										'<td>Pool</td>'+
 									'</tr>'));
 
@@ -169,36 +169,18 @@
 						let hashrate = 1;
 						var seconds = new Date().getTime() / 1000;
 						row = $("#row_" + coin.symbol);
-						row.find( ".hashrate"    ).text(getReadableHashRateString(coin.network.difficulty / coin.network.coinDifficultyTarget) + '/sec');
+						row.find( ".hashrate"    ).text(getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec');
 						row.find( ".netblock"    ).text((seconds - coin.network.lastblockdatetime).toFixed(0)+'s');
 						row.find( ".difficulty"  ).text(coin.network.difficulty);
-						row.find( ".marketvalue" ).text(coin.marketvalue + " BTC");
-						row.find( ".dailyearning").text(coin.rewardperday);
-						row.find( ".dailybtcearning" ).text(coin.rewardperday * coin.marketvalue);
+						row.find( ".marketvalue" ).text(LimitFractionalDigits(coin.marketvalue));
+						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday));
+						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue));
 					}
 				}
 
-				// setInterval(() => {
-			
-				// 	$( ".coin" ).each(function() {
-				// 		if($( this ).data('api'))
-				// 		{
-				// 			var row = $( this );
-
-				// 			$.ajax({
-				// 				url: row.data('api') + '/stats',
-				// 				dataType: 'json',
-				// 				cache: 'false'
-				// 			}).done(function(data){
-				// 				var seconds = new Date().getTime() / 1000;
-								
-				// 				row.find( ".hashrate" ).text(getReadableHashRateString(data.network.difficulty / data.config.coinDifficultyTarget) + '/sec');
-				// 				row.find( ".netblock" ).text( (seconds - data.network.timestamp).toFixed(0)+'s');
-
-				// 			});
-				// 		}
-				// 	});
-				// }, 5000);
+				function LimitFractionalDigits(number, digits) {
+					return isNaN(number) ? number : (parseFloat(number)).toFixed(Math.max((digits || 8) + 1 - number.toString().indexOf('.'),1));
+				}
 			});
 
 

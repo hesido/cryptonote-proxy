@@ -35,14 +35,6 @@ process.on("uncaughtException", function(error) {
 
 var pusher;
 
-// var testCoin = new coinMethods.Coin("","","","","https://haven.miner.rocks/api/",{
-// 	apibaseurl: "https://tradeogre.com/api/v1/ticker/",
-// 	jsonpath: "price",
-// 	marketname: "btc-loki"
-// })
-
-// //Promise.all([testCoin.FetchMarketValue(), testCoin.FetchNetworkDetails()]).then(console.log(testCoin));
-
 const runTimeSettings = {UIset: {}, userList: []};
 const poolSettings = {};
 var config;
@@ -322,11 +314,9 @@ io.on('connection', function(socket){
 		EvaluateConfig();
 		InitializeCoins();
 
-		if(poolSettings[user]) {
-			socket.emit('coins',poolSettings[user].coins);
-		}
-
-		socket.emit('runtimesettings', runTimeSettings);
+		var toEmit = {runtimesettings: runTimeSettings}
+		if(poolSettings[user]) toEmit.coins = poolSettings[user].coins;
+		socket.emit('uiupdate', toEmit);
 
 		if(user) respondToUser(user);
 
@@ -336,7 +326,7 @@ io.on('connection', function(socket){
 	socket.on('getruntimesettings',function(user) {
 		if(pools[user]) respondToUser(user);
 		
-		socket.emit('runtimesettings', runTimeSettings);
+		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
 	});
 
 	socket.on('user',respondToUser);
@@ -345,16 +335,21 @@ io.on('connection', function(socket){
 		if(timeoutObj) clearTimeout(timeoutObj);
 
 		if(poolSettings[user]) {
-			socket.emit('coins',poolSettings[user].coins);
+			socket.emit('uiupdate', {
+				coins: poolSettings[user].coins,
+				workers: {
+					list: workerhashrates[user]||{},
+					servertime:	((new Date).getTime())/1000
+					},
+			});
 			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
-			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
+
 
 			var promiseChain = [];
 			for (let coin of poolSettings[user].coins) {
 				promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
 			}
-			console.log(poolSettings[user].coins);
-			Promise.all(promiseChain).then(() => socket.emit('coinsupdate', poolSettings[user].coins));
+			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {coinsupdate: poolSettings[user].coins}));
 			
 			timeoutObj = setTimeout(updateUI, 4000, user);
 		} else {
@@ -368,9 +363,15 @@ io.on('connection', function(socket){
 		for (let coin of poolSettings[user].coins) {
 			promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
 		}
-		socket.emit('active',(poolSettings[user].default||config.default));
-		socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-		socket.emit('coinsupdate',poolSettings[user].coins);
+		//await Promise.all(promiseChain);
+		socket.emit('uiupdate', {
+			active: (poolSettings[user].default||config.default),
+			workers: {
+				list: workerhashrates[user]||{},
+				servertime:	((new Date).getTime())/1000
+				},
+			coinsupdate: poolSettings[user].coins
+		});
 		timeoutObj = setTimeout(updateUI, 4000, user);
 		console.trace();
 	}
@@ -379,7 +380,7 @@ io.on('connection', function(socket){
 		logger.info('->'+coin+' ('+user+')');
 		pools[user].default=coin;
 		switchEmitter.emit('switch',coin,user);
-		socket.emit('active',coin);
+		socket.emit('uiupdate', { active:coin });
 		if(pusher && runTimeSettings.UIset.usePushMessaging)
 			pusher.note({}, `${user} coin switch` , `Switched to ${coin}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
 	});

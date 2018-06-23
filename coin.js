@@ -6,7 +6,7 @@ const urljoin = require('url-join');
 var CoinMethods = {
 /**
  * @typedef { {symbol: string, name: string, login: string, url: string, api: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
- * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean } } CoinNetwork
+ * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string } } CoinNetwork
  * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean} } Ticker
  */
 
@@ -42,6 +42,64 @@ Coin: class {
       this.coinunit = 1000000000;
       this.marketvalue = 0;
       this.rewardperday = 0;
+    
+      this.networkAPIS = {
+        genericCryptonote: async () => {
+          try {
+            this.network.hasError = "";
+            let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});
+            let hashrate = 1000;
+    
+            if(response.data.error) {throw new Error("API response error")};
+    
+            this.network.difficulty = response.data.network.difficulty;
+
+            if(!(this.network.blockheight = response.data.network.height))  {throw new Error("Wrong api type")};;
+            this.network.lastblockdatetime = response.data.network.timestamp;
+            this.coinunit = response.data.config.coinUnits || this.coinunit;
+            this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
+            this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
+            this.network.coindifficultytarget = response.data.config.coinDifficultyTarget
+    
+          }
+          catch(error) {
+            console.log(error);
+            this.network.hasError = error;
+          }
+        },
+  
+        fairpool: async () => {
+          try {
+            this.network.hasError = "";
+            let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});;
+            let hashrate = 1000;
+    
+            if(response.data.error) {throw new Error("API response error")};
+    
+            this.network.difficulty = response.data.network.difficulty;
+
+            //This is actually pool block found time, instead of networks last block.
+            //to do: this will be handled differently.
+            this.network.lastblockdatetime = response.data.pool.stats.lastBlockFound / 1000;
+            this.coinunit = response.data.config.coinUnits || this.coinunit;
+
+            this.network.coindifficultytarget = response.data.config.coinDifficultyTarget
+
+            response = await axios.get(urljoin(this.api, "network")).catch(() => {throw new Error("URL failed to load")});;
+            this.network.blockheight = response.data.blockchainHeight;
+            //Note: Not sure fair pool api supports dev fees or coinbase fees.
+            this.network.reward = response.data.reward / this.coinunit;
+            this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
+          }
+          catch(error) {
+            console.log(error);
+            this.network.hasError = error;
+          }
+        }
+  
+      };
+  
+      this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})
     }
 
     async FetchMarketValue() {
@@ -49,7 +107,7 @@ Coin: class {
       try {
         this.ticker.hasError = false;
 
-        let response = await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.marketname));
+        let response = await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.marketname)).catch((error) => {throw new Error(error);});
 
         if(response.data.error) {throw new Error("API response error")};
 
@@ -62,29 +120,19 @@ Coin: class {
       }
     }
 
-    async FetchNetworkDetails() {
-      try {
-        this.network.hasError = false;
-        let response = await axios.get(urljoin(this.api, "stats"));
-        let hashrate = 1000;
-
-        if(response.data.error) {throw new Error("API response error")};
-
-        this.network.difficulty = response.data.network.difficulty;
-        this.network.blockheight = response.data.network.height;
-        this.network.lastblockdatetime = response.data.network.timestamp;
-        this.coinunit = response.data.config.coinUnits || this.coinunit;
-        this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
-        this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
-        this.network.coindifficultytarget = response.data.config.coinDifficultyTarget
-
+    async getApiType() {
+      if (this.network.apiType) return this.network.apiType;
+      if (!this.api) return "__apinotset"
+      this.network.apiType = "__detecting";
+      for(var apiname in this.networkAPIS) {
+        await this.networkAPIS[apiname]();
+        if(!this.network.hasError) return this.network.apiType = apiname;
       }
-      catch(error) {
-        console.log(error);
-        this.network.hasError = true;
-      }
+      console.log("failed api detection");
+      return this.network.apiType = "__failed";
     }
-  },
+
+  }
 
 }
 

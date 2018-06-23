@@ -8,7 +8,9 @@
 		<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.4.0/jquery.timeago.min.js"></script>
 		
 		<script>
-			function getReadableHashRateString(hashrate){
+
+			(function() {
+				function getReadableHashRateString(hashrate){
 				var i = 0;
 				var byteUnits = [' H', ' KH', ' MH', ' GH', ' TH', ' PH' ];
 				while (hashrate > 1000){
@@ -54,6 +56,7 @@
 
 			var socket;
 			var user;
+			var workerhashrate = 13;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -178,17 +181,17 @@
 						row.find( ".netblock"    ).text((seconds - coin.network.lastblockdatetime).toFixed(0)+'s');
 						row.find( ".difficulty"  ).text(coin.network.difficulty);
 						row.find( ".marketvalue" ).text(LimitFractionalDigits(coin.marketvalue));
-						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday));
-						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue));
+						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday  * workerhashrate));
+						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue  *workerhashrate));
 					}
 				}
 
 				function LimitFractionalDigits(number, digits) {
-					return isNaN(number) ? number : (parseFloat(number)).toFixed(Math.max((digits || 8) + 1 - number.toString().indexOf('.'),1));
+					return isNaN(number) ? number : (parseFloat(number)).toFixed(Math.max((digits || 8) + 1 - (Math.max(number.toString().indexOf('.'), 1)),1));
 				}
 			});
 
-
+			})();
 
 		</script>
 		

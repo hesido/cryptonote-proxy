@@ -337,6 +337,7 @@ io.on('connection', function(socket){
 		if(poolSettings[user]) {
 			socket.emit('uiupdate', {
 				coins: poolSettings[user].coins,
+				active: poolSettings[user].default,
 				workers: {
 					list: workerhashrates[user]||{},
 					servertime:	((new Date).getTime())/1000
@@ -349,7 +350,7 @@ io.on('connection', function(socket){
 			for (let coin of poolSettings[user].coins) {
 				promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
 			}
-			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {coinsupdate: poolSettings[user].coins}));
+			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {coinsupdate: poolSettings[user].coins})).catch((error) => (console.log(error)));
 			
 			timeoutObj = setTimeout(updateUI, 4000, user);
 		} else {
@@ -363,7 +364,7 @@ io.on('connection', function(socket){
 		for (let coin of poolSettings[user].coins) {
 			promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
 		}
-		//await Promise.all(promiseChain);
+		await Promise.all(promiseChain).catch((error) => console.log(error));
 		socket.emit('uiupdate', {
 			active: (poolSettings[user].default||config.default),
 			workers: {
@@ -373,12 +374,11 @@ io.on('connection', function(socket){
 			coinsupdate: poolSettings[user].coins
 		});
 		timeoutObj = setTimeout(updateUI, 4000, user);
-		console.trace();
 	}
 
 	socket.on('switch', function(user,coin){
 		logger.info('->'+coin+' ('+user+')');
-		pools[user].default=coin;
+		poolSettings[user].default=coin;
 		switchEmitter.emit('switch',coin,user);
 		socket.emit('uiupdate', { active:coin });
 		if(pusher && runTimeSettings.UIset.usePushMessaging)
@@ -418,7 +418,7 @@ function InitializeCoins() {
 		poolSettings[username].coins = [];
 		for (var poolid in pools[username]) {
 			let pool = pools[username][poolid];
-			poolSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split('.')[0], pool.url, pool.api, pool.ticker && {
+			poolSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
 				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
 				marketname: pool.ticker.marketname,
 				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath

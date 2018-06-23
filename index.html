@@ -56,7 +56,7 @@
 
 			var socket;
 			var user;
-			var workerhashrate = 13;
+			var workerhashrate = 1;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -92,8 +92,8 @@
 							'<td>LastBlock</td>' +
 							'<td>Difficulty</td>' +
 							'<td>BTC Value</td>' +
-							'<td>Daily Earning</td>' +
-							'<td>Daily BTC</td>' +
+							'<td>Daily Mined<br />(<span class="workerhashrate">1</span> kH/s)</td>' +
+							'<td>Daily BTC<br />(<span class="workerhashrate">1</span> kH/s)</td>' +
 							'<td>Pool</td>' +
 							'</tr>'));
 
@@ -109,8 +109,8 @@
 								'<td class="dailybtcearning"></td>' +
 								'<td>' + (coin.url ? ('<a target="_blank" class="pool" href="' + coin.url.replace(/\/$/, "") + '/?wallet=' + coin.login + '">Poolstats</a>') : coin.login) + ' </td>' +
 								'</tr>'));
-							if (coin.active)
-								$('#switch_' + coin.symbol).css('color', 'red');
+							// if (coin.active)
+							// 	$('#switch_' + coin.symbol).css('color', 'red');
 							$('#switch_' + coin.symbol).click(function () {
 								user = $('#user').val();
 								socket.emit('switch', user, this.id.substr(7));
@@ -142,10 +142,12 @@
 						var combined=0;
 						var keys = Object.keys(list);
 						for(var worker of keys){
+							if(worker == user) workerhashrate = list[worker].hashrate;
 							var date = jQuery.timeago(new Date(list[worker].time * 1000));
 							$('#workers').append($('<span>'+worker+' : '+date+' : '+list[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
 							if(	list[worker].time > (servertime-(60*5))) combined+=list[worker].hashrate;
 						}
+						$('span.workerhashrate').text(workerhashrate.toFixed(1));
 						$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
 					}
 					if (update.coinsupdate) {
@@ -181,8 +183,8 @@
 						row.find( ".netblock"    ).text((seconds - coin.network.lastblockdatetime).toFixed(0)+'s');
 						row.find( ".difficulty"  ).text(coin.network.difficulty);
 						row.find( ".marketvalue" ).text(LimitFractionalDigits(coin.marketvalue));
-						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday  * workerhashrate));
-						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue  *workerhashrate));
+						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)));
+						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)));
 					}
 				}
 

@@ -57,6 +57,7 @@
 			var socket;
 			var user;
 			var workerhashrate = 1;
+			var updateTimeout;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -186,6 +187,8 @@
 						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)));
 						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)));
 					}
+					if(updateTimeout) window.clearTimeout(updateTimeout);
+					updateTimeout = window.setTimeout(()=>socket.emit('requestupdate', user),4000);
 				}
 
 				function LimitFractionalDigits(number, digits) {
@@ -279,6 +282,9 @@
 				<div id='uisettings'>
 					<label class="settinglabel" for="UIset_usePushMessaging">Use push messages
 						<input id="UIset_usePushMessaging" type="checkbox">
+					</label>
+					<label class="settinglabel" for="UIset_autoCoinSwitch">Auto coin switch
+						<input id="UIset_autoCoinSwitch" type="checkbox">
 					</label>
 				</div>
 			</div>

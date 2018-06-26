@@ -2,19 +2,42 @@
 const axios = require('axios');
 const urljoin = require('url-join');
 
+const assumestaleafterxseconds = 8;
 
 var CoinMethods = {
 /**
  * @typedef { {symbol: string, name: string, login: string, url: string, api: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
- * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string } } CoinNetwork
- * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean} } Ticker
+ * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
+ * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean, updatetime: number} } Ticker
  */
 
  /**
  * @param {Coin[]} [coins] - Array of coins
+ * @returns {Coin}
  */
-getPreferredCoin : function(coins) {
+getPreferredCoin : async function(coins) {
+  /**
+   * @type CoinNetwork
+   * */
+  let now = (new Date().getTime()) / 1000;
+  let promisechain = []
+  for(let coin of coins.filter((c)=> (now - c.network.updatetime) > assumestaleafterxseconds)) {
+    promisechain.push(coin.FetchNetworkDetails());
+  }
+  for(let coin of coins.filter((c)=> (now - c.ticker.updatetime) > assumestaleafterxseconds)) {
+    promisechain.push(coin.FetchMarketValue());
+  }
+  
+  let maxRewardCoin = await Promise.all(promisechain).then(()=> {
+    let targetCoin;
+    coins.filter((c) => !c.ticker.hasError && !c.network.hasError).map((c) => {
+      targetCoin = targetCoin || c;
+      targetCoin = ((c.rewardperday * c.marketvalue) > (targetCoin.rewardperday * targetCoin.marketvalue)) ? c : targetCoin;
+    });
+    return targetCoin;
+  });
 
+  return maxRewardCoin;
 },
 
 
@@ -59,8 +82,8 @@ Coin: class {
             this.coinunit = response.data.config.coinUnits || this.coinunit;
             this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
             this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
-            this.network.coindifficultytarget = response.data.config.coinDifficultyTarget
-    
+            this.network.coindifficultytarget = response.data.config.coinDifficultyTarget;
+            this.network.updatetime = ((new Date).getTime())/1000;
           }
           catch(error) {
             console.log(error);
@@ -90,6 +113,7 @@ Coin: class {
             //Note: Not sure fair pool api supports dev fees or coinbase fees.
             this.network.reward = response.data.reward / this.coinunit;
             this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
+            this.network.updatetime = ((new Date).getTime())/1000;
           }
           catch(error) {
             console.log(error);
@@ -116,6 +140,7 @@ Coin: class {
       catch(error) {
         console.log(error);
         this.ticker.hasError = true;
+        this.ticker.updatetime = ((new Date).getTime())/1000;
         this.marketvalue = 0;
       }
     }

@@ -1,7 +1,6 @@
 const net = require("net");
 const events = require('events');
 const fs = require('fs');
-const express = require('express');
 const basicAuth = require('express-basic-auth')
 const app = require('express')();
 const http = require('http');
@@ -12,6 +11,7 @@ const BN = require('bignumber.js');
 const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
 const coinMethods = require('./coin.js');
+
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
@@ -35,7 +35,7 @@ process.on("uncaughtException", function(error) {
 
 var pusher;
 
-const runTimeSettings = {UIset: {}, userList: []};
+const runTimeSettings = {UIset: {autoCoinSwitch: false}, userList: []};
 const poolSettings = {};
 var config;
 var workerhashrates = {};
@@ -314,8 +314,11 @@ io.on('connection', function(socket){
 		EvaluateConfig();
 		InitializeCoins();
 
-		var toEmit = {runtimesettings: runTimeSettings}
-		if(poolSettings[user]) toEmit.coins = poolSettings[user].coins;
+		let activeCoinStillInConfig = poolSettings[user].coins.filter(c => c.symbol == poolSettings[user].default)[0];
+		if(!activeCoinStillInConfig) poolSettings[user].default = "";
+
+		let toEmit = {runtimesettings: runTimeSettings}
+		//if(poolSettings[user]) toEmit.coins = poolSettings[user].coins;
 		socket.emit('uiupdate', toEmit);
 
 		if(user) respondToUser(user);
@@ -330,6 +333,8 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('user',respondToUser);
+
+	socket.on('requestupdate', updateUI);
 
 	function respondToUser(user) {
 		if(timeoutObj) clearTimeout(timeoutObj);
@@ -352,7 +357,7 @@ io.on('connection', function(socket){
 			}
 			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {coinsupdate: poolSettings[user].coins})).catch((error) => (console.log(error)));
 			
-			timeoutObj = setTimeout(updateUI, 4000, user);
+			//timeoutObj = setTimeout(updateUI, 4000, user);
 		} else {
 			logger.info(user + ': Not found!');
 			socket.emit('usererror', "User Not Found!");
@@ -373,7 +378,10 @@ io.on('connection', function(socket){
 				},
 			coinsupdate: poolSettings[user].coins
 		});
-		timeoutObj = setTimeout(updateUI, 4000, user);
+		// //console.log(await coinMethods.getPreferredCoin(poolSettings[user].coins));
+		// let switchCoin = await coinMethods.getPreferredCoin(poolSettings[user].coins);
+		// let testCoin = poolSettings[user].coins.filter(c => c == switchCoin)[0];
+		//timeoutObj = setTimeout(updateUI, 4000, user);
 	}
 
 	socket.on('switch', function(user,coin){
@@ -414,8 +422,12 @@ function EvaluateConfig() {
 function InitializeCoins() {
 	runTimeSettings.userList = Object.keys(pools),
 	runTimeSettings.userList.map((username) => {
-		poolSettings[username] = {};
-		poolSettings[username].coins = [];
+		let activeCoinIDX = poolSettings[username] && poolSettings[username].default;
+		poolSettings[username] = {
+			coins: [],
+			default: activeCoinIDX
+		};
+
 		for (var poolid in pools[username]) {
 			let pool = pools[username][poolid];
 			poolSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {

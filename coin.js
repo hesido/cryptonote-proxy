@@ -15,7 +15,7 @@ var CoinMethods = {
  * @param {Coin[]} [coins] - Array of coins
  * @returns {Coin}
  */
-getPreferredCoin : async function(coins) {
+getPreferredCoin : async function(coins, hashrate = 1) {
   /**
    * @type CoinNetwork
    * */
@@ -32,7 +32,7 @@ getPreferredCoin : async function(coins) {
     let targetCoin;
     coins.filter((c) => !c.ticker.hasError && !c.network.hasError).map((c) => {
       targetCoin = targetCoin || c;
-      targetCoin = ((c.rewardperday * c.marketvalue) > (targetCoin.rewardperday * targetCoin.marketvalue)) ? c : targetCoin;
+      targetCoin = ((c.rewardperday * c.marketvalue * hashrate) > (targetCoin.rewardperday * targetCoin.marketvalue * hashrate)) ? c : targetCoin;
     });
     return targetCoin;
   });

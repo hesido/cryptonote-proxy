@@ -35,7 +35,7 @@ process.on("uncaughtException", function(error) {
 
 var pusher;
 
-const runTimeSettings = {UIset: {autoCoinSwitch: false}, userList: []};
+const runTimeSettings = {userList: []};
 const poolSettings = {};
 var config;
 var workerhashrates = {};
@@ -72,7 +72,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
 	poolSettings[user].default = pools[user][idx].symbol;
-	
+
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
 	var remotesocket = new net.Socket();
@@ -81,6 +81,11 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var poolDiff=0;
 	const connectTime = ((new Date).getTime())/1000;
 	var shares=0;
+
+	if(poolSettings[user].UIset.autoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
+		if(poolSettings[user].coinswitchtimeout) clearTimeout(poolSettings[user].coinswitchtimeout);
+		poolSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user)
+	}
 
 	remotesocket.on('connect', function (data) {
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
@@ -104,7 +109,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
 			setWorker(request.result.id);
-			if(! firstConn)
+			if(!firstConn)
 			{
 				logger.info('  new job from login reply ('+pass+')');
 				var job = request.result.job;
@@ -191,7 +196,7 @@ function createResponder(localsocket,user,pass){
 		connected = true;
 	};
 
-	var poolCB = attachPool(localsocket,pools[user].default||config.default,true,idCB,user,pass);
+	var poolCB = attachPool(localsocket,poolSettings[user].default||config.default,true,idCB,user,pass);
 
 	var switchCB = function(newcoin,newuser){
 
@@ -315,11 +320,13 @@ io.on('connection', function(socket){
 		InitializeCoins();
 
 		let activeCoinStillInConfig = poolSettings[user].coins.filter(c => c.symbol == poolSettings[user].default)[0];
-		if(!activeCoinStillInConfig) poolSettings[user].default = "";
+		if (!activeCoinStillInConfig) poolSettings[user].default = "";
 
-		let toEmit = {runtimesettings: runTimeSettings}
+		// let toEmit = {
+		// 	runtimesettings: runTimeSettings,
+		// }
 		//if(poolSettings[user]) toEmit.coins = poolSettings[user].coins;
-		socket.emit('uiupdate', toEmit);
+		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
 
 		if(user) respondToUser(user);
 
@@ -327,9 +334,8 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('getruntimesettings',function(user) {
-		if(pools[user]) respondToUser(user);
-		
 		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
+		if(pools[user]) respondToUser(user);
 	});
 
 	socket.on('user',respondToUser);
@@ -347,6 +353,7 @@ io.on('connection', function(socket){
 					list: workerhashrates[user]||{},
 					servertime:	((new Date).getTime())/1000
 					},
+				uiset: poolSettings[user].UIset
 			});
 			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
 
@@ -389,7 +396,7 @@ io.on('connection', function(socket){
 		poolSettings[user].default=coin;
 		switchEmitter.emit('switch',coin,user);
 		socket.emit('uiupdate', { active:coin });
-		if(pusher && runTimeSettings.UIset.usePushMessaging)
+		if(pusher && poolSettings[user].UIset.usePushMessaging)
 			pusher.note({}, `${user} coin switch` , `Switched to ${coin}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
 	});
 
@@ -397,26 +404,31 @@ io.on('connection', function(socket){
 		if(timeoutObj) clearTimeout(timeoutObj);
 	});
 
-	socket.on('setruntimesetting', function(settingproperty, value) {
-		runTimeSettings.UIset[settingproperty] = value;
-		logger.info("Setting " + settingproperty + " changed to " + value);
+	socket.on('setruntimesetting', function(settingproperty, value, user) {
+		poolSettings[user].UIset[settingproperty] = value;
+		logger.info(user + " setting " + settingproperty + " changed to " + value);
+
+		switch(settingproperty) {
+			case "autoCoinSwitch":
+				if (poolSettings[user].coinswitchtimeout) clearTimeout(poolSettings[user].coinswitchtimeout);
+				if (poolSettings[user].UIset.autoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
+					poolSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user)
+				};
+				break;
+		}
 	} );
 
 });
 
+async function EvaluateCoinSwitch(user) {
+	console.log("Evaluating "+ user + " " + config.EvaluateSwitchEveryXMinutes);
+	poolSettings[user].coinswitchtimeout = clearTimeout(poolSettings[user].coinswitchtimeout);
+	poolSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+}
+
 function EvaluateConfig() {
 	config = JSON.parse(fs.readFileSync('config.json'));
 	pools = config.pools;
-
-	if (config.pushbulletApiToken) {
-		runTimeSettings.UIset.usePushMessaging = true;
-		if (!pusher || pusher.ApiToken !== config.pushbulletApiToken)
-			pusher = new pushbullet(config.pushbulletApiToken);
-	}
-	else {
-		pusher = null;
-		delete runTimeSettings.UIset.usePushMessaging;
-	}
 }
 
 function InitializeCoins() {
@@ -425,7 +437,12 @@ function InitializeCoins() {
 		let activeCoinIDX = poolSettings[username] && poolSettings[username].default;
 		poolSettings[username] = {
 			coins: [],
-			default: activeCoinIDX
+			default: activeCoinIDX,
+			UIset: {autoCoinSwitch: false}
+		};
+
+		if (config.pushbulletApiToken) {
+			poolSettings[username].UIset.usePushMessaging = true;
 		};
 
 		for (var poolid in pools[username]) {
@@ -437,4 +454,12 @@ function InitializeCoins() {
 			}));
 		}
 	});
+
+	if (config.pushbulletApiToken) {
+		if (!pusher || pusher.ApiToken !== config.pushbulletApiToken)
+			pusher = new pushbullet(config.pushbulletApiToken);
+	} else {
+		pusher = null;
+	}
+	
 }

@@ -76,7 +76,7 @@
 						}
 					);
 					$("#uisettings :checkbox").change(function() {
-						socket.emit('setruntimesetting',this.id.substr(6), this.checked)
+						socket.emit('setruntimesetting',this.id.substr(6), this.checked, user)
 						});
 				});
 			
@@ -123,11 +123,15 @@
 						$('#userselector').empty();
 						runtimesettings.userList.map((user) => $("<option />", { text: user, value: user }).appendTo("#userselector"));
 						$('#userselector').val($('#user').val());
-						var uiSettings = Object.keys(runtimesettings.UIset);
+					}
+					if (update.uiset) {
+						console.log(update.uiset);
+						let uiset = update.uiset;
+						let uiSettings = Object.keys(uiset);
 						$("label.settinglabel").hide();
 						uiSettings.map((settingId) => {
 							$("label[for='UIset_" + settingId + "']").show();
-							$("input#UIset_" + settingId).prop("checked", runtimesettings.UIset[settingId]);
+							$("input#UIset_" + settingId).prop("checked", uiset[settingId]);
 						});
 					}
 					if (update.active) {

@@ -450,9 +450,9 @@ function InitializeCoins() {
 		for (var poolid in pools[username]) {
 			let pool = pools[username][poolid];
 			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
-				apibaseurl: pool.ticker.apibaseurl || config.ticker.apibaseurl || null,
+				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
 				marketname: pool.ticker.marketname,
-				jsonpath: pool.ticker.jsonpath || config.ticker.jsonpath
+				jsonpath: pool.ticker.jsonpath || "price",
 			}));
 		}
 	});

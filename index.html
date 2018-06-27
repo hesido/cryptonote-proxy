@@ -197,12 +197,12 @@
 						let hashrate = 1;
 						var seconds = new Date().getTime() / 1000;
 						row = $("#row_" + coin.symbol);
-						row.find( ".hashrate"    ).text(getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec');
-						row.find( ".netblock"    ).text((seconds - coin.network.lastblockdatetime).toFixed(0)+'s');
-						row.find( ".difficulty"  ).text(coin.network.difficulty);
-						row.find( ".marketvalue" ).text(LimitFractionalDigits(coin.marketvalue));
-						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)));
-						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)));
+						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
+						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
+						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
+						row.find( ".marketvalue" ).text((coin.marketvalue) ? LimitFractionalDigits(coin.marketvalue) : "N/A");
+						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)) : "N/A");
+						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)) : "N/A");
 					}
 				}
 

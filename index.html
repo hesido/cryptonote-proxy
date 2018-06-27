@@ -57,7 +57,8 @@
 			var socket;
 			var user;
 			var workerhashrate = 1;
-			var updateTimeout;
+			var updateTimeout = null;
+			var windowisfocused = true;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -78,8 +79,18 @@
 					$("#uisettings :checkbox").change(function() {
 						socket.emit('setruntimesetting',this.id.substr(6), this.checked, user)
 						});
-				});
-			
+					    $(window).focus(function () {
+							windowisfocused = true;
+							if (!updateTimeout) updateTimeout = window.setTimeout(() => socket.emit('requestupdate', user), 1000);
+						});
+
+						$(window).blur(function () {
+							windowisfocused = false;
+							if (updateTimeout) window.clearTimeout(updateTimeout);
+							updateTimeout = null;
+						});
+					});
+							
 				socket = io();
 
 				socket.on('uiupdate', (update) => {
@@ -157,6 +168,8 @@
 					}
 					if (update.coinsupdate) {
 						CoinsToTable(update.coinsupdate);
+						if(updateTimeout) window.clearTimeout(updateTimeout);
+						updateTimeout = (windowisfocused) ? window.setTimeout(()=>socket.emit('requestupdate', user), 4000) : null;
 					}
 
 				});
@@ -191,8 +204,6 @@
 						row.find( ".dailyearning").text(LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)));
 						row.find( ".dailybtcearning" ).text(LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)));
 					}
-					if(updateTimeout) window.clearTimeout(updateTimeout);
-					updateTimeout = window.setTimeout(()=>socket.emit('requestupdate', user),4000);
 				}
 
 				function LimitFractionalDigits(number, digits) {

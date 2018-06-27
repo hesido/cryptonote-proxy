@@ -125,6 +125,7 @@
 							// 	$('#switch_' + coin.symbol).css('color', 'red');
 							$('#switch_' + coin.symbol).click(function () {
 								user = $('#user').val();
+								$(this).addClass('activating');
 								socket.emit('switch', user, this.id.substr(7));
 							});
 						}
@@ -146,9 +147,8 @@
 						});
 					}
 					if (update.active) {
-						let coin = update.active;
-						$('.coin > .swit').css('color', 'white');
-						$('#switch_' + coin).css('color', 'red');
+						$('.coin > .swit').removeClass('activating activated');
+						$('#switch_' + update.active).addClass('activated');
 					}
 					if (update.workers) {
 						$('#workers').empty();
@@ -254,6 +254,14 @@
 				cursor:pointer;
 				background-color:blue;
 				color:white;
+			}
+
+			.coin > .activating {
+				background-color: rebeccapurple;
+			}
+
+			.coin > .activated {
+				background-color: mediumorchid;
 			}
 			#userselector {
 				margin: 15px 10px;

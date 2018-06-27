@@ -22,10 +22,10 @@ getPreferredCoin : async function(coins, hashrate = 1) {
    * */
   let now = (new Date().getTime()) / 1000;
   let promisechain = []
-  for(let coin of coins.filter((c)=> (now - c.network.updatetime) > assumestaleafterxseconds)) {
+  for(let coin of coins.filter((c)=> !c.network.updatetime || (now - c.network.updatetime) > assumestaleafterxseconds)) {
     promisechain.push(coin.FetchNetworkDetails());
   }
-  for(let coin of coins.filter((c)=> (now - c.ticker.updatetime) > assumestaleafterxseconds)) {
+  for(let coin of coins.filter((c)=> !c.ticker.updatetime || (now - c.ticker.updatetime) > assumestaleafterxseconds)) {
     promisechain.push(coin.FetchMarketValue());
   }
   

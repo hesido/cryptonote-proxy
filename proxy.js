@@ -73,6 +73,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
 	workerSettings[user].activeCoinId = pools[user][idx].symbol;
 
+	coin = workerSettings[user].activeCoinId;
+
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
 	var remotesocket = new net.Socket();
@@ -407,24 +409,6 @@ io.on('connection', function(socket){
 		}
 	} );
 
-	function switchCoin(user, coinidx, auto = false) {
-		logger.info('->'+coinidx+' ('+user+')');
-		workerSettings[user].activeCoinId=coinidx;
-		switchEmitter.emit('switch',coinidx,user);
-		socket.emit('uiupdate', { active:coinidx });
-		if(pusher && workerSettings[user].UIset.usePushMessaging)
-			pusher.note({}, `${user} ${auto ? "auto" : ""} coin switch` , `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
-	}
-
-	async function EvaluateCoinSwitch(user) {
-		// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
-		let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
-		if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);
-
-		workerSettings[user].coinswitchtimeout = clearTimeout(workerSettings[user].coinswitchtimeout);
-		workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
-	}
-
 });
 
 
@@ -440,7 +424,7 @@ function InitializeCoins() {
 		workerSettings[username] = {
 			coins: [],
 			activeCoinId: activeCoinIDX,
-			UIset: {autoCoinSwitch: false}
+			UIset: {autoCoinSwitch: true}
 		};
 
 		if (config.pushbulletApiToken) {
@@ -465,3 +449,23 @@ function InitializeCoins() {
 	}
 	
 }
+
+async function EvaluateCoinSwitch(user) {
+	// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
+	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
+	if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);
+
+	workerSettings[user].coinswitchtimeout = clearTimeout(workerSettings[user].coinswitchtimeout);
+	workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+}
+
+function switchCoin(user, coinidx, auto = false) {
+	logger.info((auto ? "Auto" : "") + '->'+coinidx+' ('+user+')');
+	workerSettings[user].activeCoinId = coinidx;
+	switchEmitter.emit('switch',coinidx,user);
+	//dev: currently, the change is reflected on web ui by actively requesting UIupdate. May broadcast to all sockets dealing with the user.
+	//socket.emit('uiupdate', { active:coinidx });
+	if(pusher && workerSettings[user].UIset.usePushMessaging)
+		pusher.note({}, `${user} ${auto ? "auto" : ""} coin switch` , `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
+}
+

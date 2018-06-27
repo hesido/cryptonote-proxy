@@ -71,7 +71,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var idx;
 
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	workerSettings[user].default = pools[user][idx].symbol;
+	workerSettings[user].activeCoinId = pools[user][idx].symbol;
 
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
@@ -196,7 +196,7 @@ function createResponder(localsocket,user,pass){
 		connected = true;
 	};
 
-	var poolCB = attachPool(localsocket,workerSettings[user].default||config.default,true,idCB,user,pass);
+	var poolCB = attachPool(localsocket,workerSettings[user].activeCoinId||config.default,true,idCB,user,pass);
 
 	var switchCB = function(newcoin,newuser){
 
@@ -319,13 +319,9 @@ io.on('connection', function(socket){
 		EvaluateConfig();
 		InitializeCoins();
 
-		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].default)[0];
-		if (!activeCoinStillInConfig) workerSettings[user].default = "";
+		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].activeCoinId)[0];
+		if (!activeCoinStillInConfig) workerSettings[user].activeCoinId = "";
 
-		// let toEmit = {
-		// 	runtimesettings: runTimeSettings,
-		// }
-		//if(workerSettings[user]) toEmit.coins = workerSettings[user].coins;
 		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
 
 		if(user) respondToUser(user);
@@ -348,14 +344,14 @@ io.on('connection', function(socket){
 		if(workerSettings[user]) {
 			socket.emit('uiupdate', {
 				coins: workerSettings[user].coins,
-				active: workerSettings[user].default,
+				active: workerSettings[user].activeCoinId,
 				workers: {
 					list: workerhashrates[user]||{},
 					servertime:	((new Date).getTime())/1000
 					},
 				uiset: workerSettings[user].UIset
 			});
-			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
+			logger.info('-> current for '+user+': '+(workerSettings[user].activeCoinId||config.default));
 
 
 			var promiseChain = [];
@@ -378,7 +374,7 @@ io.on('connection', function(socket){
 		}
 		await Promise.all(promiseChain).catch((error) => console.log(error));
 		socket.emit('uiupdate', {
-			active: (workerSettings[user].default||config.default),
+			active: (workerSettings[user].activeCoinId||config.default),
 			workers: {
 				list: workerhashrates[user]||{},
 				servertime:	((new Date).getTime())/1000
@@ -391,14 +387,7 @@ io.on('connection', function(socket){
 		//timeoutObj = setTimeout(updateUI, 4000, user);
 	}
 
-	socket.on('switch', function(user,coin){
-		logger.info('->'+coin+' ('+user+')');
-		workerSettings[user].default=coin;
-		switchEmitter.emit('switch',coin,user);
-		socket.emit('uiupdate', { active:coin });
-		if(pusher && workerSettings[user].UIset.usePushMessaging)
-			pusher.note({}, `${user} coin switch` , `Switched to ${coin}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
-	});
+	socket.on('switch', switchCoin);
 
 	socket.on('disconnect', function(reason){
 		if(timeoutObj) clearTimeout(timeoutObj);
@@ -418,13 +407,26 @@ io.on('connection', function(socket){
 		}
 	} );
 
+	function switchCoin(user, coinidx, auto = false) {
+		logger.info('->'+coinidx+' ('+user+')');
+		workerSettings[user].activeCoinId=coinidx;
+		switchEmitter.emit('switch',coinidx,user);
+		socket.emit('uiupdate', { active:coinidx });
+		if(pusher && workerSettings[user].UIset.usePushMessaging)
+			pusher.note({}, `${user} ${auto ? "auto" : ""} coin switch` , `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
+	}
+
+	async function EvaluateCoinSwitch(user) {
+		// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
+		let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
+		if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);
+
+		workerSettings[user].coinswitchtimeout = clearTimeout(workerSettings[user].coinswitchtimeout);
+		workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+	}
+
 });
 
-async function EvaluateCoinSwitch(user) {
-	console.log("Evaluating "+ user + " " + config.EvaluateSwitchEveryXMinutes);
-	workerSettings[user].coinswitchtimeout = clearTimeout(workerSettings[user].coinswitchtimeout);
-	workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
-}
 
 function EvaluateConfig() {
 	config = JSON.parse(fs.readFileSync('config.json'));
@@ -434,10 +436,10 @@ function EvaluateConfig() {
 function InitializeCoins() {
 	runTimeSettings.userList = Object.keys(pools),
 	runTimeSettings.userList.map((username) => {
-		let activeCoinIDX = workerSettings[username] && workerSettings[username].default;
+		let activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoinId;
 		workerSettings[username] = {
 			coins: [],
-			default: activeCoinIDX,
+			activeCoinId: activeCoinIDX,
 			UIset: {autoCoinSwitch: false}
 		};
 

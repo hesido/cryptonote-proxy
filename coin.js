@@ -13,6 +13,7 @@ var CoinMethods = {
 
  /**
  * @param {Coin[]} [coins] - Array of coins
+ * @param {number} [hashrate] - Hash rate
  * @returns {Coin}
  */
 getPreferredCoin : async function(coins, hashrate = 1) {

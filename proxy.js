@@ -1,7 +1,6 @@
 const net = require("net");
 const events = require('events');
 const fs = require('fs');
-const express = require('express');
 const basicAuth = require('express-basic-auth')
 const app = require('express')();
 const http = require('http');
@@ -11,6 +10,8 @@ const winston = require('winston');
 const BN = require('bignumber.js');
 const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
+const coinMethods = require('./coin.js');
+
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
@@ -32,22 +33,15 @@ process.on("uncaughtException", function(error) {
 	logger.error(error);
 });
 
-var config = JSON.parse(fs.readFileSync('config.json'));
-const localport = config.workerport;
-var pools = config.pools;
 var pusher;
-var externalip;
 
-const runTimeSettings = {
-	UIset: {},
-	userList: {},
-};
-
-//Only add this when necessary, present keys enable the setting on the UI (so if this is not enabled, checkbox is disabled in the frontend.)
-if(config.pushbulletApiToken) runTimeSettings.UIset.usePushMessaging = true;
-
-if(config.pushbulletApiToken)
-	pusher = new pushbullet(config.pushbulletApiToken);
+const runTimeSettings = {userList: []};
+const workerSettings = {};
+var config;
+var workerhashrates = {};
+EvaluateConfig();
+InitializeCoins();
+const localport = config.workerport;
 
 if(config.httpuser && config.httppassword) {
 	logger.info("Activating basic http authentication.");
@@ -70,17 +64,17 @@ app.get('/', function(req, res) {
 	res.sendFile(path.resolve(__dirname+'/index.html'));
 });
 
-var workerhashrates = {};
-
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
 function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
-
 	var idx;
+
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	pools[user].default = pools[user][idx].symbol;
-	
+	workerSettings[user].activeCoinId = pools[user][idx].symbol;
+
+	coin = workerSettings[user].activeCoinId;
+
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
 	var remotesocket = new net.Socket();
@@ -89,6 +83,11 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var poolDiff=0;
 	const connectTime = ((new Date).getTime())/1000;
 	var shares=0;
+
+	if(workerSettings[user].UIset.autoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
+		if(workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
+		workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user)
+	}
 
 	remotesocket.on('connect', function (data) {
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
@@ -106,14 +105,13 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 		var request = JSON.parse(data);
 		
-
 		if(request.result && request.result.job)
 		{
 			var mybuf = new  Buffer(request.result.job.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
 			setWorker(request.result.id);
-			if(! firstConn)
+			if(!firstConn)
 			{
 				logger.info('  new job from login reply ('+pass+')');
 				var job = request.result.job;
@@ -200,7 +198,7 @@ function createResponder(localsocket,user,pass){
 		connected = true;
 	};
 
-	var poolCB = attachPool(localsocket,pools[user].default||config.default,true,idCB,user,pass);
+	var poolCB = attachPool(localsocket,workerSettings[user].activeCoinId||config.default,true,idCB,user,pass);
 
 	var switchCB = function(newcoin,newuser){
 
@@ -317,107 +315,157 @@ logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
 	
-	var intervalObj;
+	var timeoutObj;
 
 	socket.on('reload',function(user) {
-		config = JSON.parse(fs.readFileSync('config.json'));
-		pools = config.pools;
+		EvaluateConfig();
+		InitializeCoins();
 
-		if(config.pushbulletApiToken) {
-				runTimeSettings.UIset.usePushMessaging = true;
-				if(!pusher || pusher.ApiToken !== config.pushbulletApiToken)
-				pusher = new pushbullet(config.pushbulletApiToken);
-			} else {
-			pusher = null;
-			delete runTimeSettings.UIset.usePushMessaging;
-			}
+		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].activeCoinId)[0];
+		if (!activeCoinStillInConfig) workerSettings[user].activeCoinId = "";
 
-		if(pools[user]) {
-			var coins = [];
-			for (var pool of pools[user]) 
-				coins.push({
-					symbol:pool.symbol,
-					login:pool.name.split('.')[0],
-					url:pool.url,
-					api:pool.api,
-					active:((pools[user].default||config.default)===pool.symbol)?1:0
-				});
+		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
 
-		socket.emit('coins',coins);
-		}
-
-		runTimeSettings.userList = Object.keys(pools);
-
-		socket.emit('runtimesettings', runTimeSettings);
+		if(user) respondToUser(user);
 
 		logger.info("pool config reloaded");
 	});
 
 	socket.on('getruntimesettings',function(user) {
-		if(pools[user]) {
-			var coins = [];
-			for (var pool of pools[user]) 
-				coins.push({
-					symbol:pool.symbol,
-					login:pool.name.split('.')[0],
-					url:pool.url,
-					api:pool.api,
-					active:((pools[user].default||config.default)===pool.symbol)?1:0
-				});
-
-		respondToUser(user);
-		}
-
-		runTimeSettings.userList = Object.keys(pools);
-		
-		socket.emit('runtimesettings', runTimeSettings);
+		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
+		if(pools[user]) respondToUser(user);
 	});
 
 	socket.on('user',respondToUser);
 
+	socket.on('requestupdate', updateUI);
+
 	function respondToUser(user) {
-		if(intervalObj) clearInterval(intervalObj);
+		if(timeoutObj) clearTimeout(timeoutObj);
 
-		if(pools[user]) {
-			var coins = [];
-			for (var pool of pools[user]) 
-				coins.push({
-					symbol:pool.symbol,
-					login:pool.name.split('.')[0],
-					url:pool.url?pool.url:'',
-					api:pool.api?pool.api:'',
-					active:((pools[user].default||config.default)===pool.symbol)?1:0
-				});
+		if(workerSettings[user]) {
+			socket.emit('uiupdate', {
+				coins: workerSettings[user].coins,
+				active: workerSettings[user].activeCoinId,
+				workers: {
+					list: workerhashrates[user]||{},
+					servertime:	((new Date).getTime())/1000
+					},
+				uiset: workerSettings[user].UIset
+			});
+			logger.info('-> current for '+user+': '+(workerSettings[user].activeCoinId||config.default));
 
-			socket.emit('coins',coins);
-			logger.info('-> current for '+user+': '+(pools[user].default||config.default));
-			socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-			intervalObj = setInterval(() => {				
-				socket.emit('active',(pools[user].default||config.default));
-				socket.emit('workers',workerhashrates[user]||{},((new Date).getTime())/1000);
-			}, 2000);
+
+			var promiseChain = [];
+			for (let coin of workerSettings[user].coins) {
+				promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
+			}
+			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {coinsupdate: workerSettings[user].coins})).catch((error) => (console.log(error)));
+			
+			//timeoutObj = setTimeout(updateUI, 4000, user);
 		} else {
 			logger.info(user + ': Not found!');
 			socket.emit('usererror', "User Not Found!");
 		}
 	}
 
-	socket.on('switch', function(user,coin){
-		logger.info('->'+coin+' ('+user+')');
-		pools[user].default=coin;
-		switchEmitter.emit('switch',coin,user);
-		socket.emit('active',coin);
-		if(pusher && runTimeSettings.UIset.usePushMessaging)
-			pusher.note({}, `${user} coin switch` , `Switched to ${coin}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
-	});
+	async function updateUI(user) {
+		var promiseChain = [];
+		for (let coin of workerSettings[user].coins) {
+			promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
+		}
+		await Promise.all(promiseChain).catch((error) => console.log(error));
+		socket.emit('uiupdate', {
+			active: (workerSettings[user].activeCoinId||config.default),
+			workers: {
+				list: workerhashrates[user]||{},
+				servertime:	((new Date).getTime())/1000
+				},
+			coinsupdate: workerSettings[user].coins
+		});
+		// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
+		// let switchCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
+		// let testCoin = workerSettings[user].coins.filter(c => c == switchCoin)[0];
+		//timeoutObj = setTimeout(updateUI, 4000, user);
+	}
+
+	socket.on('switch', switchCoin);
 
 	socket.on('disconnect', function(reason){
-		if(intervalObj) clearInterval(intervalObj);
+		if(timeoutObj) clearTimeout(timeoutObj);
 	});
 
-	socket.on('setruntimesetting', function(settingproperty, value) {
-		runTimeSettings.UIset[settingproperty] = value;
-		logger.info("Setting " + settingproperty + " changed to " + value);
+	socket.on('setruntimesetting', function(settingproperty, value, user) {
+		workerSettings[user].UIset[settingproperty] = value;
+		logger.info(user + " setting " + settingproperty + " changed to " + value);
+
+		switch(settingproperty) {
+			case "autoCoinSwitch":
+				if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
+				if (workerSettings[user].UIset.autoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
+					workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user)
+				};
+				break;
+		}
 	} );
 
 });
+
+
+function EvaluateConfig() {
+	config = JSON.parse(fs.readFileSync('config.json'));
+	pools = config.pools;
+}
+
+function InitializeCoins() {
+	runTimeSettings.userList = Object.keys(pools),
+	runTimeSettings.userList.map((username) => {
+		let activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoinId;
+		workerSettings[username] = {
+			coins: [],
+			activeCoinId: activeCoinIDX,
+			UIset: {autoCoinSwitch: true}
+		};
+
+		if (config.pushbulletApiToken) {
+			workerSettings[username].UIset.usePushMessaging = true;
+		};
+
+		for (var poolid in pools[username]) {
+			let pool = pools[username][poolid];
+			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
+				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
+				marketname: pool.ticker.marketname,
+				jsonpath: pool.ticker.jsonpath || "price",
+			}));
+		}
+	});
+
+	if (config.pushbulletApiToken) {
+		if (!pusher || pusher.ApiToken !== config.pushbulletApiToken)
+			pusher = new pushbullet(config.pushbulletApiToken);
+	} else {
+		pusher = null;
+	}
+	
+}
+
+async function EvaluateCoinSwitch(user) {
+	// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
+	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
+	if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);
+
+	workerSettings[user].coinswitchtimeout = clearTimeout(workerSettings[user].coinswitchtimeout);
+	workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+}
+
+function switchCoin(user, coinidx, auto = false) {
+	logger.info((auto ? "Auto" : "") + '->'+coinidx+' ('+user+')');
+	workerSettings[user].activeCoinId = coinidx;
+	switchEmitter.emit('switch',coinidx,user);
+	//dev: currently, the change is reflected on web ui by actively requesting UIupdate. May broadcast to all sockets dealing with the user.
+	//socket.emit('uiupdate', { active:coinidx });
+	if(pusher && workerSettings[user].UIset.usePushMessaging)
+		pusher.note({}, `${user} ${auto ? "auto" : ""} coin switch` , `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
+}
+

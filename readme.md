@@ -1,3 +1,7 @@
+CryptoNote Switching Relay Proxy
+
+Forked from repository: https://github.com/sebseb7/cryptonote-proxy
+
 https://nodejs.org/
 
 - install libraries with "npm i ."

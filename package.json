@@ -9,12 +9,14 @@
     "url": "https://github.com/sebseb7/cryptonote-proxy.git"
   },
   "dependencies": {
+    "axios": "^0.18.0",
     "bignumber.js": "^5.0.0",
     "body-parser": "^1.18.2",
     "express": "^4.16.2",
     "express-basic-auth": "^1.1.5",
     "pushbullet": "^2.2.0",
     "socket.io": "^2.0.4",
+    "url-join": "^4.0.0",
     "winston": "^2.4.0"
   },
   "engines": {

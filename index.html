@@ -8,7 +8,9 @@
 		<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.4.0/jquery.timeago.min.js"></script>
 		
 		<script>
-			function getReadableHashRateString(hashrate){
+
+			(function() {
+				function getReadableHashRateString(hashrate){
 				var i = 0;
 				var byteUnits = [' H', ' KH', ' MH', ' GH', ' TH', ' PH' ];
 				while (hashrate > 1000){
@@ -54,6 +56,9 @@
 
 			var socket;
 			var user;
+			var workerhashrate = 1;
+			var updateTimeout = null;
+			var windowisfocused = true;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -72,70 +77,108 @@
 						}
 					);
 					$("#uisettings :checkbox").change(function() {
-						socket.emit('setruntimesetting',this.id.substr(6), this.checked)
+						socket.emit('setruntimesetting',this.id.substr(6), this.checked, user)
 						});
-				});
-			
-				socket = io();
-				socket.on('coins',function(coins){
-					$('#coins').empty();
-					$('#coins').append($(
-									'<tr class="coin">'+ 
-										'<td></td>'+ 
-										'<td>Nethash</td>'+
-										'<td>LastBlock</td>'+
-										'<td></td>'+
-									'</tr>'));
+					    $(window).focus(function () {
+							windowisfocused = true;
+							if (!updateTimeout) updateTimeout = window.setTimeout(() => socket.emit('requestupdate', user), 1000);
+						});
 
-					for (var coin of coins){
+						$(window).blur(function () {
+							windowisfocused = false;
+							if (updateTimeout) window.clearTimeout(updateTimeout);
+							updateTimeout = null;
+						});
+					});
+							
+				socket = io();
+
+				socket.on('uiupdate', (update) => {
+					if (update.coins) {
+						let coins = update.coins;
+						$('#coins').empty();
 						$('#coins').append($(
-										'<tr class="coin" data-api="'+coin.api+'">'+ 
-											'<td class="swit" id="switch_'+(coin.symbol)+'">'+(coin.symbol)+'</td>'+ 
-											'<td class="diff"></td>'+
-											'<td class="netblock"></td>'+
-											'<td>'+(coin.url?('<a target="_blank" class="pool" href="'+coin.url+'/?wallet='+coin.login+'">Poolstats</a>'):coin.login)+' </td>'+
-										'</tr>'));
-						if(coin.active)
-							$('#switch_'+coin.symbol).css('color', 'red');
-						$('#switch_'+coin.symbol).click(function(){
-							user =  $('#user').val();
-							socket.emit('switch',user,this.id.substr(7));
+							'<tr class="coin">' +
+							'<td>Coin</td>' +
+							'<td>Nethash</td>' +
+							'<td>LastBlock</td>' +
+							'<td>Difficulty</td>' +
+							'<td>BTC Value</td>' +
+							'<td>Daily Mined<br />(<span class="workerhashrate">1</span> kH/s)</td>' +
+							'<td>Daily BTC<br />(<span class="workerhashrate">1</span> kH/s)</td>' +
+							'<td>Pool</td>' +
+							'</tr>'));
+
+						for (var coin of coins) {
+							$('#coins').append($(
+								'<tr class="coin" id="row_' + coin.symbol + '">' +
+								'<td class="swit" id="switch_' + (coin.symbol) + '">' + (coin.symbol) + '</td>' +
+								'<td class="hashrate"></td>' +
+								'<td class="netblock"></td>' +
+								'<td class="difficulty"></td>' +
+								'<td class="marketvalue"></td>' +
+								'<td class="dailyearning"></td>' +
+								'<td class="dailybtcearning"></td>' +
+								'<td>' + (coin.url ? ('<a target="_blank" class="pool" href="' + coin.url.replace(/\/$/, "") + '/?wallet=' + coin.login + '">Poolstats</a>') : coin.login) + ' </td>' +
+								'</tr>'));
+							// if (coin.active)
+							// 	$('#switch_' + coin.symbol).css('color', 'red');
+							$('#switch_' + coin.symbol).click(function () {
+								user = $('#user').val();
+								$(this).addClass('activating');
+								socket.emit('switch', user, this.id.substr(7));
+							});
+						}
+					};
+					if (update.runtimesettings) {
+						let runtimesettings = update.runtimesettings;
+						$('#userselector').empty();
+						runtimesettings.userList.map((user) => $("<option />", { text: user, value: user }).appendTo("#userselector"));
+						$('#userselector').val($('#user').val());
+					}
+					if (update.uiset) {
+						console.log(update.uiset);
+						let uiset = update.uiset;
+						let uiSettings = Object.keys(uiset);
+						$("label.settinglabel").hide();
+						uiSettings.map((settingId) => {
+							$("label[for='UIset_" + settingId + "']").show();
+							$("input#UIset_" + settingId).prop("checked", uiset[settingId]);
 						});
 					}
+					if (update.active) {
+						$('.coin > .swit').removeClass('activating activated');
+						$('#switch_' + update.active).addClass('activated');
+					}
+					if (update.workers) {
+						$('#workers').empty();
+						let list = update.workers.list;
+						let servertime = update.workers.servertime;
+
+						var combined=0;
+						var keys = Object.keys(list);
+						for(var worker of keys){
+							if(worker == user) workerhashrate = list[worker].hashrate;
+							var date = jQuery.timeago(new Date(list[worker].time * 1000));
+							$('#workers').append($('<span>'+worker+' : '+date+' : '+list[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
+							if(	list[worker].time > (servertime-(60*5))) combined+=list[worker].hashrate;
+						}
+						$('span.workerhashrate').text(workerhashrate.toFixed(1));
+						$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
+					}
+					if (update.coinsupdate) {
+						CoinsToTable(update.coinsupdate);
+						if(updateTimeout) window.clearTimeout(updateTimeout);
+						updateTimeout = (windowisfocused) ? window.setTimeout(()=>socket.emit('requestupdate', user), 4000) : null;
+					}
+
 				});
-				socket.on('runtimesettings', (runtimesettings) => {
-					$('#userselector').empty();
-					runtimesettings.userList.map((user)=> $("<option />", {text: user, value: user}).appendTo("#userselector"));
-					$('#userselector').val($('#user').val());
-					var uiSettings = Object.keys(runtimesettings.UIset);
-					$("label.settinglabel").hide();
-					uiSettings.map((settingId) => {
-						console.log(settingId);
-						$("label[for='UIset_" + settingId +"']").show();
-						$("input#UIset_" + settingId).prop("checked",  runtimesettings.UIset[settingId]);
-					});
-					
-				});
+
 				socket.on('usererror', (errorText) => {
 					$("#userselector").val(null);
 					alert(errorText);
 				});
-				socket.on('active',function(coin){
-					console.log("Active:" + coin)
-					$('.coin > .swit').css('color', 'white');
-					$('#switch_'+coin).css('color', 'red');
-				});
-				socket.on('workers',function(list,servertime){
-					$('#workers').empty();
-					var combined=0;
-					var keys = Object.keys(list);
-					for(var worker of keys){
-						var date = jQuery.timeago(new Date(list[worker].time * 1000));
-						$('#workers').append($('<span>'+worker+' : '+date+' : '+list[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
-						if(	list[worker].time > (servertime-(60*5))) combined+=list[worker].hashrate;
-					}
-					$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
-				});
+
 				$('#rel').click(function(){
 					user =  $('#user').val();
 					$('#coins').empty();
@@ -148,31 +191,27 @@
 					socket.emit('user',user);
 				});
 
+				function CoinsToTable(coins){
+					for (var coin of coins) {
+						//todo: get hashrate from worker
+						let hashrate = 1;
+						var seconds = new Date().getTime() / 1000;
+						row = $("#row_" + coin.symbol);
+						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
+						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
+						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
+						row.find( ".marketvalue" ).text((coin.marketvalue) ? LimitFractionalDigits(coin.marketvalue) : "N/A");
+						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)) : "N/A");
+						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)) : "N/A");
+					}
+				}
 
-				setInterval(() => {
-			
-					$( ".coin" ).each(function() {
-						if($( this ).data('api'))
-						{
-							var row = $( this );
-
-							$.ajax({
-								url: row.data('api') + '/stats',
-								dataType: 'json',
-								cache: 'false'
-							}).done(function(data){
-								var seconds = new Date().getTime() / 1000;
-								
-								row.find( ".diff" ).text(getReadableHashRateString(data.network.difficulty / data.config.coinDifficultyTarget) + '/sec');
-								row.find( ".netblock" ).text( (seconds - data.network.timestamp).toFixed(0)+'s');
-
-							});
-						}
-					});
-				}, 5000);
+				function LimitFractionalDigits(number, digits) {
+					return isNaN(number) ? number : (parseFloat(number)).toFixed(Math.max((digits || 8) + 1 - (Math.max(number.toString().indexOf('.'), 1)),1));
+				}
 			});
 
-
+			})();
 
 		</script>
 		
@@ -216,6 +255,14 @@
 				background-color:blue;
 				color:white;
 			}
+
+			.coin > .activating {
+				background-color: rebeccapurple;
+			}
+
+			.coin > .activated {
+				background-color: mediumorchid;
+			}
 			#userselector {
 				margin: 15px 10px;
 			}
@@ -258,6 +305,9 @@
 				<div id='uisettings'>
 					<label class="settinglabel" for="UIset_usePushMessaging">Use push messages
 						<input id="UIset_usePushMessaging" type="checkbox">
+					</label>
+					<label class="settinglabel" for="UIset_autoCoinSwitch">Auto coin switch
+						<input id="UIset_autoCoinSwitch" type="checkbox">
 					</label>
 				</div>
 			</div>

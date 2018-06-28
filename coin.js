@@ -12,7 +12,7 @@ var CoinMethods = {
  */
 
  /**
- * @param {Coin[]} [coins] - Array of coins
+ * @param {Coin[]} coins - Array of coins
  * @param {number} [hashrate] - Hash rate
  * @returns {Coin}
  */
@@ -26,6 +26,9 @@ getPreferredCoin : async function(coins, hashrate = 1) {
     promisechain.push(coin.FetchMarketValue());
   }
   
+  /**
+   * @type Coin
+   */
   let maxRewardCoin = await Promise.all(promisechain).then(()=> {
     let targetCoin;
     coins.filter((c) => !c.ticker.hasError && !c.network.hasError).map((c) => {
@@ -41,9 +44,9 @@ getPreferredCoin : async function(coins, hashrate = 1) {
 
 Coin: class { 
 /**
- * @param {string} [symbol]
- * @param {string} [name]
- * @param {string} [walletaddress]
+ * @param {string} symbol
+ * @param {string} name
+ * @param {string} walletaddress
  * @param {string} [url]
  * @param {string} [api]
  * @param {Ticker} [ticker]

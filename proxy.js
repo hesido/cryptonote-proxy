@@ -34,7 +34,13 @@ process.on("uncaughtException", function(error) {
 	logger.error(error);
 });
 
-var pusher = {};
+var pusher = {
+	apihandle: null,
+	messageQueue: [],
+	push: function(message) {
+
+	}
+};
 
 const runTimeSettings = {userList: []};
 const workerSettings = {};

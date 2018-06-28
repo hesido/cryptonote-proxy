@@ -10,6 +10,7 @@ const winston = require('winston');
 const BN = require('bignumber.js');
 const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
+const stripjson = require('strip-json-comments');
 const coinMethods = require('./coin.js');
 
 
@@ -33,7 +34,7 @@ process.on("uncaughtException", function(error) {
 	logger.error(error);
 });
 
-var pusher;
+var pusher = {};
 
 const runTimeSettings = {userList: []};
 const workerSettings = {};
@@ -413,7 +414,7 @@ io.on('connection', function(socket){
 
 
 function EvaluateConfig() {
-	config = JSON.parse(fs.readFileSync('config.json'));
+	config = JSON.parse(stripjson(fs.readFileSync('config.json',"utf8")));
 	pools = config.pools;
 }
 

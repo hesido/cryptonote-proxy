@@ -17,9 +17,6 @@ var CoinMethods = {
  * @returns {Coin}
  */
 getPreferredCoin : async function(coins, hashrate = 1) {
-  /**
-   * @type CoinNetwork
-   * */
   let now = (new Date().getTime()) / 1000;
   let promisechain = []
   for(let coin of coins.filter((c)=> !c.network.updatetime || (now - c.network.updatetime) > assumestaleafterxseconds)) {

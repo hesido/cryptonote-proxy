@@ -4,9 +4,10 @@ const pushbullet = require('pushbullet');
 class pushnotify {
 /**
  * @param {string} apiTokenString
- * @param {number} [maxMessagesPerHour]
+ * @param {number} [maxMessagesPerTimeFrame]
+ * @param {number} [timeFrameMinutes]
  */
-    constructor(apiTokenString, maxMessagesPerHour = 0) {
+    constructor(apiTokenString, MaxMessagesPerTimeFrame = 0, TimeFrameMinutes = 60) {
         /* type pushbullet */
         this.pusher = null;
         this.apiToken = apiTokenString;
@@ -15,8 +16,9 @@ class pushnotify {
          */
         this.messages = [];
         this.pushrestricttimeout = null;
-        this.maxmessagesperhour = maxMessagesPerHour;
-        this.messagesentduringhour = 0;
+        this.maxMessagesPerTimeFrame = MaxMessagesPerTimeFrame;
+        this.messagesentduringtimeframe = 0;
+        this.timeFrameMins = TimeFrameMinutes;
     }
 
     /**
@@ -24,17 +26,18 @@ class pushnotify {
      * @param {string} message 
      */
     pushnote(title, message) {
-        if(this.pusher) {
-            if(this.pushrestricttimeout == null || !this.maxmessagesperhour || this.messagesentduringhour < this.maxmessagesperhour) {
-                this.pusher.note({}, title, message, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
-                if(this.maxmessagesperhour) {
-                    ++this.messagesentduringhour;
-                    this.pushrestricttimeout = this.pushrestricttimeout || setTimeout(this.pushAllQueuedMessages, 60 * 60 * 1000);
-                }
-            } else {
-                this.messages.push({title: title, message: message});
+        if (!this.pusher) return;
+        if (this.pushrestricttimeout == null || this.messagesentduringtimeframe < this.maxMessagesPerTimeFrame) {
+            //this.pusher.note({}, title, message, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
+            console.log(message);
+            if (this.maxMessagesPerTimeFrame) {
+                ++this.messagesentduringtimeframe;
+                console.log(this.messagesentduringtimeframe);
+                this.pushrestricttimeout = this.pushrestricttimeout || setTimeout(() => this.pushAllQueuedMessages(), this.timeFrameMins * 60 * 1000);
             }
-
+        } else {
+            console.log(this.messages);
+            this.messages.push({ "title": title, "body": message });
         }
     }
 
@@ -48,9 +51,23 @@ class pushnotify {
         }
     }
 
-    get apiToken() {return _apiToken;}
+    pushAllQueuedMessages() {
+        if(this.messages.length = 0) return;
+        let message;
+        let combinedMessage = "";
+        let title = `${this.messages.length} messages since last notification`;
+        while(message = this.messages.shift())
+            combinedMessage += message.title + "\n" + message.body +"\n\n";
+        this.pushrestricttimeout = null;
+        console.log(combinedMessage);
+        //this.pusher.note({}, title, combinedMessage, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
+    }
+
+    get apiToken() {return this._apiToken;}
     /**
      * @param {string} [token]
      */   
-    set apiToken(token) {_apiToken = token; this.pusher = (apiToken) ? new pushbullet(apiToken) : null;}
+    set apiToken(token) {this.pusher = (token && this.apiToken !== token) ? new pushbullet(token) : null; this._apiToken = token;}
 }
+
+module.exports = pushnotify;

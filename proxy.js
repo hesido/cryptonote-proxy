@@ -8,10 +8,11 @@ const https = require('https');
 const path = require('path');
 const winston = require('winston');
 const BN = require('bignumber.js');
-const pushbullet = require('pushbullet');
+//const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
 const stripjson = require('strip-json-comments');
 const coinMethods = require('./coin.js');
+const pushNotify = require('./pushnotify.js');
 
 
 const server = http.createServer(app);
@@ -34,19 +35,14 @@ process.on("uncaughtException", function(error) {
 	logger.error(error);
 });
 
-var pusher = {
-	apihandle: null,
-	messageQueue: [],
-	push: function(message) {
-
-	}
-};
-
 const runTimeSettings = {userList: []};
 const workerSettings = {};
 var config;
 var workerhashrates = {};
 EvaluateConfig();
+
+var pusher = new pushNotify(config.pushbulletApiToken, 1, 0.5);
+
 InitializeCoins();
 const localport = config.workerport;
 
@@ -58,10 +54,11 @@ if(config.httpuser && config.httppassword) {
 		challenge: true,
 		realm: "minerproxy"
 	}));
-	if(pusher) {
+	if(pusher.apiToken) {
 		https.get({'host': 'api.ipify.org', 'path': '/'}, function(resp) {
 		resp.on('data', function(externalip) {
-			pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
+			/* ToDo: put a wrapper in pushnotify class*/
+			pusher.pusher.link({}, "Miner Proxy", "http://"+ externalip + ":" + config.httpexternalport || config.httpport, "Link to Miner Proxy", function(error, response) {});
 		});
 	});
 	}
@@ -448,12 +445,7 @@ function InitializeCoins() {
 		}
 	});
 
-	if (config.pushbulletApiToken) {
-		if (!pusher || pusher.ApiToken !== config.pushbulletApiToken)
-			pusher = new pushbullet(config.pushbulletApiToken);
-	} else {
-		pusher = null;
-	}
+	pusher.ApiToken = config.pushbulletApiToken;
 	
 }
 
@@ -472,7 +464,7 @@ function switchCoin(user, coinidx, auto = false) {
 	switchEmitter.emit('switch',coinidx,user);
 	//dev: currently, the change is reflected on web ui by actively requesting UIupdate. May broadcast to all sockets dealing with the user.
 	//socket.emit('uiupdate', { active:coinidx });
-	if(pusher && workerSettings[user].UIset.usePushMessaging)
-		pusher.note({}, `${user} ${auto ? "auto" : ""} coin switch` , `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`, (error, response) => {if(error) logger.info(`Pushbullet API: ${error}`)});
+	if(workerSettings[user].UIset.usePushMessaging)
+		pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`);
 }
 

@@ -28,15 +28,13 @@ class pushnotify {
     pushnote(title, message) {
         if (!this.pusher) return;
         if (this.pushrestricttimeout == null || this.messagesentduringtimeframe < this.maxMessagesPerTimeFrame) {
-            //this.pusher.note({}, title, message, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
+            this.pusher.note({}, title, message, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
             console.log(message);
             if (this.maxMessagesPerTimeFrame) {
                 ++this.messagesentduringtimeframe;
-                console.log(this.messagesentduringtimeframe);
                 this.pushrestricttimeout = this.pushrestricttimeout || setTimeout(() => this.pushAllQueuedMessages(), this.timeFrameMins * 60 * 1000);
             }
         } else {
-            console.log(this.messages);
             this.messages.push({ "title": title, "body": message });
         }
     }
@@ -52,15 +50,16 @@ class pushnotify {
     }
 
     pushAllQueuedMessages() {
-        if(this.messages.length = 0) return;
-        let message;
-        let combinedMessage = "";
-        let title = `${this.messages.length} messages since last notification`;
+        if(this.messages.length == 0) {
+            this.messagesentduringtimeframe = 0;            
+            return;
+        }
+        let message, combinedMessage = "", title = `${this.messages.length} messages since last notification`;
         while(message = this.messages.shift())
             combinedMessage += message.title + "\n" + message.body +"\n\n";
         this.pushrestricttimeout = null;
-        console.log(combinedMessage);
-        //this.pusher.note({}, title, combinedMessage, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
+        this.pusher.note({}, title, combinedMessage, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
+        this.messagesentduringtimeframe = 1;
     }
 
     get apiToken() {return this._apiToken;}

@@ -1,0 +1,82 @@
+{
+    /* your pushbullet api token. You can get a free api token when you register, so you can track coin switches from any device */
+	"pushbulletApiToken":"",
+    /* this is the port that your miners will connect to */
+	"workerport":2349,
+    /* this is the port for web interface */
+	"httpport":2350,
+	/* httpexternalport is optional. Use it if you want to reach your proxy from anywere with internet access.
+	   It's usually same as the httpport, but may be anything that suits your port forwarding in your router */
+	"httpexternalport":"",
+	/* httpuser and password must be used if you are accessing from the web, but it only provides very basic security. Use at your own risk */
+	"httpuser":"",
+	"httppassword":"",
+	/* Default coin symbol */
+	"default":"nh",
+	/* Currently, only tradeogre is supported for market price api */
+	"tickerdefaultapi":"tradeogre",
+    /* After switching, mine coin for at least this many minutes */
+	"MineCoinForAtLeastXMinutes" : 8,
+    /* Try coin switching every x minutes */
+	"EvaluateSwitchEveryXMinutes" : 4,
+	"pools":
+	{
+		"userA":[
+			{
+				"symbol":"itns",
+				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
+				"host":"45.32.171.89",
+				"port":"9999",
+				"url":"http://dummypool.com",
+				/* miner network api. Preferably the same as the one you are mining, but does not have to be. Required if you want to use auto coin-switch. */
+				"api":"http://a.x.y.z/api",
+				/* ticker is optional. Required if you want to use auto coin-switch. */
+				"ticker": {
+					/* Market-name on tradeogre */
+					"marketname": "btc-itns"
+				}
+			},{
+				"symbol":"xun",
+				"name":"Xunhfkjfhlkdfjglkdfjgdlkfgjdlkfgjdflkg",
+				"host":"78.47.92.206",
+				"port":"9999",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api",
+				"passwordtemplate": "XUNworker-{%1}"
+			},{
+				"symbol":"etn",
+				"name":"etndfglkdjfgldkjfgkldjfglkjfg",
+				"host":"pool.etn.spacepools.org",
+				"port":"7777",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
+			},{
+				"symbol":"msr",
+				"name":"5q9dflkjdflgkdjfgdfgdfgdfgdfg",
+				"host":"masari.superpools.net",
+				"port":"8889",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
+			},{
+				"symbol":"nh",
+				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",
+				"host":"cryptonight.eu.nicehash.com",
+				"port":"3355"
+			}
+		],"userB":[
+			{
+				"symbol":"itns",
+				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
+				"host":"45.32.171.89",
+				"port":"9999",
+				"url":"http://dummypool.com",
+				"api":"http://a.x.y.z/api"
+			},{
+				"symbol":"nh",
+				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",
+				"host":"cryptonight.eu.nicehash.com",
+				"port":"3355"
+			}
+		]
+	}
+}

@@ -41,7 +41,7 @@ var config;
 var workerhashrates = {};
 EvaluateConfig();
 
-var pusher = new pushNotify(config.pushbulletApiToken, 1, 0.5);
+var pusher = new pushNotify(config.pushbulletApiToken, 1, 60);
 
 InitializeCoins();
 const localport = config.workerport;
@@ -387,10 +387,6 @@ io.on('connection', function(socket){
 				},
 			coinsupdate: workerSettings[user].coins
 		});
-		// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
-		// let switchCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
-		// let testCoin = workerSettings[user].coins.filter(c => c == switchCoin)[0];
-		//timeoutObj = setTimeout(updateUI, 4000, user);
 	}
 
 	socket.on('switch', switchCoin);
@@ -450,7 +446,6 @@ function InitializeCoins() {
 }
 
 async function EvaluateCoinSwitch(user) {
-	// //console.log(await coinMethods.getPreferredCoin(workerSettings[user].coins));
 	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
 	if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);
 

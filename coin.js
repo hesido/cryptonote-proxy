@@ -87,7 +87,7 @@ Coin: class {
             this.network.updatetime = ((new Date).getTime())/1000;
           }
           catch(error) {
-            console.log(error);
+            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
             this.network.hasError = error;
           }
         },
@@ -117,7 +117,7 @@ Coin: class {
             this.network.updatetime = ((new Date).getTime())/1000;
           }
           catch(error) {
-            console.log(error);
+            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
             this.network.hasError = error;
           }
         }
@@ -135,13 +135,13 @@ Coin: class {
         let response = await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.marketname)).catch((error) => {throw new Error(error);});
 
         if(response.data.error) {throw new Error("API response error")};
+        this.ticker.updatetime = ((new Date).getTime())/1000;
 
         return this.marketvalue = response.data[this.ticker.jsonpath];
       }
       catch(error) {
-        console.log(error);
         this.ticker.hasError = true;
-        this.ticker.updatetime = ((new Date).getTime())/1000;
+        console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
         this.marketvalue = 0;
       }
     }
@@ -154,7 +154,7 @@ Coin: class {
         await this.networkAPIS[apiname]();
         if(!this.network.hasError) return this.network.apiType = apiname;
       }
-      console.log("failed api detection");
+      console.log("Failed api detection for coin: " + this.symbol);
       return this.network.apiType = "__failed";
     }
 

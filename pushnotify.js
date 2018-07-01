@@ -66,7 +66,7 @@ class pushnotify {
     /**
      * @param {string} [token]
      */   
-    set apiToken(token) {this.pusher = (token && this.apiToken !== token) ? new pushbullet(token) : (token) ? pusher : null; this._apiToken = token;}
+    set apiToken(token) {this.pusher = (token && this.apiToken !== token) ? new pushbullet(token) : (token) ? this.pusher : null; this._apiToken = token;}
 }
 
 module.exports = pushnotify;

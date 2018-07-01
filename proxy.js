@@ -325,7 +325,7 @@ io.on('connection', function(socket){
 		EvaluateConfig();
 		InitializeCoins();
 
-		pusher.apiToken = config.apiToken;
+		pusher.apiToken = config.pushbulletApiToken;
 		pusher.timeFrameMins = config.joinpushmessageswithinXminutes;
 
 		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].activeCoinId)[0];

@@ -16,7 +16,7 @@ class pushnotify {
          */
         this.messages = [];
         this.pushrestricttimeout = null;
-        this.maxMessagesPerTimeFrame = MaxMessagesPerTimeFrame;
+        this.maxMessagesPerTimeFrame = (TimeFrameMinutes) ? MaxMessagesPerTimeFrame : 0;
         this.messagesentduringtimeframe = 0;
         this.timeFrameMins = TimeFrameMinutes;
     }
@@ -66,7 +66,7 @@ class pushnotify {
     /**
      * @param {string} [token]
      */   
-    set apiToken(token) {this.pusher = (token && this.apiToken !== token) ? new pushbullet(token) : null; this._apiToken = token;}
+    set apiToken(token) {this.pusher = (token && this.apiToken !== token) ? new pushbullet(token) : (token) ? pusher : null; this._apiToken = token;}
 }
 
 module.exports = pushnotify;

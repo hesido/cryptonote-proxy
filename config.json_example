@@ -1,5 +1,6 @@
 {
 	"pushbulletApiToken":"",
+	"joinpushmessageswithinXminutes":60,
 	"workerport":2349,
 	"httpport":2350,
 	"httpexternalport":"",

@@ -41,7 +41,7 @@ var config;
 var workerhashrates = {};
 EvaluateConfig();
 
-var pusher = new pushNotify(config.pushbulletApiToken, 1, 60);
+var pusher = new pushNotify(config.pushbulletApiToken, 1 , config.joinpushmessageswithinXminutes);
 
 InitializeCoins();
 const localport = config.workerport;
@@ -325,6 +325,9 @@ io.on('connection', function(socket){
 		EvaluateConfig();
 		InitializeCoins();
 
+		pusher.apiToken = config.apiToken;
+		pusher.timeFrameMins = config.joinpushmessageswithinXminutes;
+
 		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].activeCoinId)[0];
 		if (!activeCoinStillInConfig) workerSettings[user].activeCoinId = "";
 
@@ -424,9 +427,10 @@ function InitializeCoins() {
 		workerSettings[username] = {
 			coins: [],
 			activeCoinId: activeCoinIDX,
-			UIset: {autoCoinSwitch: true}
+			UIset: {autoCoinSwitch: false}
 		};
 
+		// This is separately handled as a missing key will hide the setting in UI, by design
 		if (config.pushbulletApiToken) {
 			workerSettings[username].UIset.usePushMessaging = true;
 		};

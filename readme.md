@@ -12,6 +12,6 @@ https://nodejs.org/
 Support: hesido@yahoo.com
 
 ## Changes from 4.1.0:
-* Added aggregate push notifications (Limit to 1 per hour)
+* Added aggregate push notifications (Aggregate all messages within time span set in configuration)
 * Minor bug fixes
 * Config.json now can have comments

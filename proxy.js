@@ -450,11 +450,14 @@ function InitializeCoins() {
 }
 
 async function EvaluateCoinSwitch(user) {
+	if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
 	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
-	if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);
 
-	workerSettings[user].coinswitchtimeout = clearTimeout(workerSettings[user].coinswitchtimeout);
-	workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+	if (workerSettings[user].UIset.autoCoinSwitch)
+		{
+			if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);	
+			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+		}
 }
 
 function switchCoin(user, coinidx, auto = false) {

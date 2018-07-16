@@ -7,8 +7,7 @@
 		<script src="//code.jquery.com/jquery-1.11.1.js"></script>
 		<script src="//cdnjs.cloudflare.com/ajax/libs/jquery-timeago/1.4.0/jquery.timeago.min.js"></script>
 		
-		<script>
-
+		<script>"use strict";
 			(function() {
 				function getReadableHashRateString(hashrate){
 				var i = 0;
@@ -58,7 +57,12 @@
 			var user;
 			var workerhashrate = 1;
 			var updateTimeout = null;
+			var workerUpdateTimeout = null;
 			var windowisfocused = true;
+			var workerList;
+			var servertime = 0;
+			var localtimeskew = 0;
+			var coinList;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -79,16 +83,19 @@
 					$("#uisettings :checkbox").change(function() {
 						socket.emit('setruntimesetting',this.id.substr(6), this.checked, user)
 						});
-					    $(window).focus(function () {
-							windowisfocused = true;
-							if (!updateTimeout) updateTimeout = window.setTimeout(() => socket.emit('requestupdate', user), 1000);
-						});
+					$(window).focus(function () {
+						windowisfocused = true;
+						if (!updateTimeout) updateTimeout = window.setTimeout(() => socket.emit('requestupdate', user), 1000);
+					});
 
-						$(window).blur(function () {
-							windowisfocused = false;
-							if (updateTimeout) window.clearTimeout(updateTimeout);
-							updateTimeout = null;
-						});
+					$(window).blur(function () {
+						windowisfocused = false;
+						if (updateTimeout) window.clearTimeout(updateTimeout);
+						updateTimeout = null;
+						if (workerUpdateTimeout) window.clearTimeout(workerUpdateTimeout);
+						workerUpdateTimeout = null;
+						$('table#coins').css("opacity", "0.5");
+					});
 					});
 							
 				socket = io();
@@ -151,25 +158,17 @@
 						$('#switch_' + update.active).addClass('activated');
 					}
 					if (update.workers) {
-						$('#workers').empty();
-						let list = update.workers.list;
-						let servertime = update.workers.servertime;
+						workerList = update.workers.list;
+						servertime = update.workers.servertime;
+						localtimeskew = (new Date()) / 1000 - servertime;
 
-						var combined=0;
-						var keys = Object.keys(list);
-						for(var worker of keys){
-							if(worker == user) workerhashrate = list[worker].hashrate;
-							var date = jQuery.timeago(new Date(list[worker].time * 1000));
-							$('#workers').append($('<span>'+worker+' : '+date+' : '+list[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
-							if(	list[worker].time > (servertime-(60*5))) combined+=list[worker].hashrate;
-						}
-						$('span.workerhashrate').text(workerhashrate.toFixed(1));
-						$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
+						if(!workerUpdateTimeout) RefreshWorkerHashrates();
 					}
 					if (update.coinsupdate) {
-						CoinsToTable(update.coinsupdate);
+						coinList = update.coinsupdate;
+						CoinsToTable();
 						if(updateTimeout) window.clearTimeout(updateTimeout);
-						updateTimeout = (windowisfocused) ? window.setTimeout(()=>socket.emit('requestupdate', user), 4000) : null;
+						updateTimeout = (windowisfocused) ? window.setTimeout(()=>socket.emit('requestupdate', user), 4100) : null;
 					}
 
 				});
@@ -182,6 +181,7 @@
 				$('#rel').click(function(){
 					user =  $('#user').val();
 					$('#coins').empty();
+					workerList = null;
 					socket.emit('reload',user);
 				});
 				$('#loaduser').click(function(){
@@ -191,12 +191,41 @@
 					socket.emit('user',user);
 				});
 
-				function CoinsToTable(coins){
-					for (var coin of coins) {
+				function RefreshWorkerHashrates() {
+					$('#workers').empty();
+					var combined=0;
+					var referencetime = ((new Date()) / 1000) - localtimeskew;
+					if(workerList) {
+						var keys = Object.keys(workerList);
+						for(var worker of keys){
+							if(worker == user) workerhashrate = workerList[worker].hashrate;
+							var date = (referencetime - workerList[worker].time).toFixed(0) + " seconds ago";
+							$('#workers').append($('<span>'+worker+' : '+date+' : '+workerList[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
+							if (workerList[worker].time > (servertime-(60*5))) combined+=workerList[worker].hashrate;
+						}
+					}
+						
+						$('span.workerhashrate').text(workerhashrate.toFixed(1));
+					
+						$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
+
+					if (coinList) {
+						for (var coin of coinList) {
+							let row = $("#row_" + coin.symbol);
+							row.find(".netblock").text((coin.network.lastblockdatetime) ? (referencetime - coin.network.lastblockdatetime).toFixed(0) + 's' : "N/A");
+						}
+					}
+				
+					if(workerList)
+						workerUpdateTimeout = (windowisfocused) ? window.setTimeout(RefreshWorkerHashrates, 1000) : null;
+				}
+
+				function CoinsToTable(){
+					for (var coin of coinList) {
 						//todo: get hashrate from worker
 						let hashrate = 1;
-						var seconds = new Date().getTime() / 1000;
-						row = $("#row_" + coin.symbol);
+						var seconds = (new Date().getTime() / 1000) - localtimeskew;
+						let row = $("#row_" + coin.symbol);
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
 						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
 						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
@@ -204,6 +233,9 @@
 						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)) : "N/A");
 						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)) : "N/A");
 					}
+					$('table#coins').css("opacity", "1.0");
+					
+					if (!workerUpdateTimeout && workerList) RefreshWorkerHashrates();
 				}
 
 				function LimitFractionalDigits(number, digits) {

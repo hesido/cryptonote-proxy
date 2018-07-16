@@ -196,12 +196,17 @@ function createResponder(localsocket,user,pass){
 
 	var connected = false;
 
+	if(!workerSettings[user]) {
+		logger.error(user + "configuration not found.");
+	}
+
 	var idCB = function(id){
 		logger.info(' set worker response id to '+id+' ('+pass+')');
 		myWorkerId=id;
 		connected = true;
 	};
 
+	
 	var poolCB = attachPool(localsocket,workerSettings[user].activeCoinId||config.default,true,idCB,user,pass);
 
 	var switchCB = function(newcoin,newuser){

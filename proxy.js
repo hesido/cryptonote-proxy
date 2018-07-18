@@ -365,7 +365,12 @@ io.on('connection', function(socket){
 					},
 				uiset: workerSettings[user].UIset
 			});
-			logger.info('-> current for '+user+': '+(workerSettings[user].activeCoinId||config.default));
+
+			if(workerSettings[user].activeCoinId) {
+				logger.info('-> current for '+user+': ' + workerSettings[user].activeCoinId);
+			} else {
+				logger.info('-> current for '+user+': not set');
+			}
 
 
 			var promiseChain = [];

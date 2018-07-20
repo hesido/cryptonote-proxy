@@ -75,9 +75,11 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var idx;
 
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	workerSettings[user].activeCoinId = pools[user][idx].symbol;
-
-	coin = workerSettings[user].activeCoinId;
+	coin = workerSettings[user].activeCoinId = pools[user][idx].symbol;
+	//coin = workerSettings[user].activeCoinId;
+	workerSettings[user].activeCoin = workerSettings[user].coins.filter((c) => c.symbol === coin)[0];
+	
+	console.log(workerSettings[user].activeCoin)
 
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
@@ -111,6 +113,9 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		
 		if(request.result && request.result.job)
 		{
+			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin.algo) {
+				request.result.job.algo = workerSettings[user].activeCoin.algo;
+			}
 			var mybuf = new  Buffer(request.result.job.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
@@ -135,7 +140,11 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		{
 			var mybuf = new  Buffer(request.params.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
-			
+		
+			if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin.algo) {
+				request.params.algo = workerSettings[user].activeCoin.algo;
+			}
+
 			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
 		}
 		else if(request.method) 
@@ -146,6 +155,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}
 			
 		localsocket.write(JSON.stringify(request)+"\n");
+		console.log(JSON.stringify(request, null, 2))
 	});
 	
 	remotesocket.on('close', function(had_error,text) {
@@ -184,13 +194,14 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
 			}
 			remotesocket.write(JSON.stringify(data)+"\n");
+			console.log(JSON.stringify(data, null, 2))
 		}
 	}
 
 	return poolCB;
 };
 
-function createResponder(localsocket,user,pass){
+function createResponder(localsocket,user,pass,algoList){
 
 	var myWorkerId;
 
@@ -206,8 +217,10 @@ function createResponder(localsocket,user,pass){
 		connected = true;
 	};
 
-	
+	workerSettings[user].algoList = algoList;
 	var poolCB = attachPool(localsocket,workerSettings[user].activeCoinId||config.default,true,idCB,user,pass);
+
+
 
 	var switchCB = function(newcoin,newuser){
 
@@ -235,7 +248,7 @@ function createResponder(localsocket,user,pass){
 			request.params.id=myWorkerId;
 			logger.info('  Got share from worker ('+pass+')');
 			
-			var mybuf = new  Buffer(request.params.result, "hex");
+			//var mybuf = new  Buffer(request.params.result, "hex");
 
 
 			//logger.warn(mybuf);
@@ -271,8 +284,7 @@ const workerserver = net.createServer(function (localsocket) {
 		if(request.method === 'login')
 		{
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
-			responderCB = createResponder(localsocket,request.params.login,request.params.pass);
-		
+			responderCB = createResponder(localsocket,request.params.login,request.params.pass, request.params.algo || null);
 		}else{
 			if(!responderCB)
 			{
@@ -447,7 +459,7 @@ function InitializeCoins() {
 
 		for (var poolid in pools[username]) {
 			let pool = pools[username][poolid];
-			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
+			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.algo || null, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
 				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
 				marketname: pool.ticker.marketname,
 				jsonpath: pool.ticker.jsonpath || "price",
@@ -463,7 +475,7 @@ async function EvaluateCoinSwitch(user) {
 	if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
 	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
 
-	if (workerSettings[user].UIset.autoCoinSwitch)
+	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin)
 		{
 			if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);	
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);

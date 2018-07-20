@@ -6,7 +6,7 @@ const assumestaleafterxseconds = 8;
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, name: string, login: string, url: string, api: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {symbol: string, name: string, algo: string, login: string, url: string, api: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
  * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean, updatetime: number} } Ticker
  */
@@ -51,10 +51,11 @@ Coin: class {
  * @param {string} [api]
  * @param {Ticker} [ticker]
  */
-    constructor(symbol, name, walletaddress, url, api, ticker) {
+    constructor(symbol, name, algo, walletaddress, url, api, ticker) {
       this.symbol = symbol;
       this.name = name || symbol;
       this.login = walletaddress;
+      this.algo = algo,
       this.url = url;
       this.active = false;
       this.api = api;

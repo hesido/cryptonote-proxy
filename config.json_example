@@ -15,6 +15,7 @@
 		"userA":[
 			{
 				"symbol":"itns",
+				"algo":"",
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",
 				"port":"9999",

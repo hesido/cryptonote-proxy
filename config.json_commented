@@ -26,6 +26,9 @@
 		"userA":[
 			{
 				"symbol":"itns",
+				/* algo is optional, names should be compatible with XMRig Proxy standard algo names */
+				/* will be required when you want different algo coin switch */
+				"algo":"",
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",
 				"port":"9999",

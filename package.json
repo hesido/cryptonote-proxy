@@ -1,14 +1,14 @@
 {
   "name": "cryptonote-switching-relay-proxy",
-  "version": "4.1.0",
+  "version": "4.1.1",
   "license": "0BSD",
   "author": "sebseb",
   "contributors": [
-      {
-        "name" : "Emrah Baskaya",
-        "email" : "hesido@yahoo.com",
-        "url" : "http://www.hesido.com/"
-      }
+    {
+      "name": "Emrah Baskaya",
+      "email": "hesido@yahoo.com",
+      "url": "http://www.hesido.com/"
+    }
   ],
   "main": "proxy.js",
   "repository": {
@@ -23,8 +23,9 @@
     "express-basic-auth": "^1.1.5",
     "pushbullet": "^2.2.0",
     "socket.io": "^2.0.4",
+    "strip-json-comments": "^2.0.1",
     "url-join": "^4.0.0",
-    "winston": "^2.4.0"
+    "winston": "^2.4.3"
   },
   "engines": {
     "node": ">=4"

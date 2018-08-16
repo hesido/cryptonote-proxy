@@ -105,16 +105,18 @@
 						let coins = update.coins;
 						$('#coins').empty();
 						$('#coins').append($(
+							'<thead>' +
 							'<tr class="coin">' +
-							'<td>Coin</td>' +
-							'<td>Nethash</td>' +
-							'<td>LastBlock</td>' +
-							'<td>Difficulty</td>' +
-							'<td>BTC Value</td>' +
-							'<td>Daily Mined<br />(<span class="workerhashrate">1</span> kH/s)</td>' +
-							'<td>Daily BTC<br />(<span class="workerhashrate">1</span> kH/s)</td>' +
-							'<td>Pool</td>' +
-							'</tr>'));
+							'<th>Coin</th>' +
+							'<th>Nethash</th>' +
+							'<th>LastBlock</th>' +
+							'<th>BTC Value</th>' +
+							'<th>Daily Mined<br />(<span class="workerhashrate">1</span> kH/s)</th>' +
+							'<th>Daily BTC<br />(<span class="workerhashrate">1</span> kH/s)</th>' +
+							'<th>More Info</th>' +
+							'</tr>' +
+							'</thead>'
+							));
 
 						for (var coin of coins) {
 							$('#coins').append($(
@@ -122,11 +124,15 @@
 								'<td class="swit" id="switch_' + (coin.symbol) + '">' + (coin.symbol) + '</td>' +
 								'<td class="hashrate"></td>' +
 								'<td class="netblock"></td>' +
-								'<td class="difficulty"></td>' +
 								'<td class="marketvalue"></td>' +
 								'<td class="dailyearning"></td>' +
 								'<td class="dailybtcearning"></td>' +
-								'<td>' + (coin.url ? ('<a target="_blank" class="pool" href="' + coin.url.replace(/\/$/, "") + '/?wallet=' + coin.login + '">Poolstats</a>') : coin.login) + ' </td>' +
+								'<td class="moreinfo"><div class="dropdown"><i></i><div class="dropdown-content"><dl>' +
+									'<dt>Pool</dt><dd>' + (coin.url ? ('<a target="_blank" class="pool" href="' + coin.url.replace(/\/$/, "") + '/?wallet=' + coin.login + '">Stats</a>') : coin.login) + '</dd>' +
+									'<dt>Difficulty</dt><dd class="difficulty"></dd>' +
+									'<dt>Algo</dt><dd class="algoname"></dd>' +
+									'<dt>Expected Hashrate</dt><dd class="expectedhash"></dd>' +
+									'</div></div></td>' +
 								'</tr>'));
 							// if (coin.active)
 							// 	$('#switch_' + coin.symbol).css('color', 'red');
@@ -231,6 +237,8 @@
 						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
 						row.find( ".marketvalue" ).text((coin.marketvalue) ? LimitFractionalDigits(coin.marketvalue) : "N/A");
 						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)) : "N/A");
+						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
+						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(coin.hashrate) : "Not set");
 						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)) : "N/A");
 					}
 					$('table#coins').css("opacity", "1.0");
@@ -325,7 +333,43 @@
 				-webkit-box-shadow:none;
 				box-shadow:none;
 				}
-		</STYLE>
+
+			.dropdown {
+				position: relative;
+				display: inline-block;
+				padding: 0 1.6em;
+				background-color: aliceblue;
+			}
+
+			.dropdown-content {
+				display: none;
+				position: absolute;
+				left:25px;
+				background-color: #f9f9f9;
+				min-width: 200px;
+				box-shadow: 2px 4px 4px 0px rgba(0,0,0,0.2);
+				padding: 0.4em;
+				margin: 0px;
+				z-index: 1;
+			}
+
+			.dropdown-content dl {
+				margin: 0;
+			}
+
+			.dropdown:hover .dropdown-content {
+				display: block;
+			}
+
+			i {
+				border: solid black;
+				border-width: 0 3px 3px 0;
+				display: inline-block;
+				padding: 3px;
+				transform: rotate(45deg);
+				-webkit-transform: rotate(45deg);
+			}
+		</style>
 	</head>
 	<body>
 

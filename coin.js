@@ -6,19 +6,23 @@ const assumestaleafterxseconds = 8;
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, name: string, algo: string, login: string, url: string, api: string, active: boolean, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {symbol: string, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
  * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean, updatetime: number} } Ticker
  */
 
  /**
  * @param {Coin[]} coins - Array of coins
- * @param {number} [hashrate] - Hash rate
+ * @param {Coin} activeCoin - actively mined coin
+ * @param {number} [algoswitchmultiplier] - Algo Switch Penalty Multiplier
  * @returns {Coin}
  */
-getPreferredCoin : async function(coins, hashrate = 1) {
+getPreferredCoin : async function(coins, activeCoin = null, algoswitchmultiplier = 1) {
   let now = (new Date().getTime()) / 1000;
-  let promisechain = []
+  let promisechain = [];
+  let activeAlgo = activeCoin && activeCoin.algo;
+  algoswitchmultiplier = (activeAlgo && algoswitchmultiplier) || 1;
+
   for(let coin of coins.filter((c)=> !c.network.updatetime || (now - c.network.updatetime) > assumestaleafterxseconds)) {
     promisechain.push(coin.FetchNetworkDetails());
   }
@@ -33,7 +37,9 @@ getPreferredCoin : async function(coins, hashrate = 1) {
     let targetCoin;
     coins.filter((c) => !c.ticker.hasError && !c.network.hasError).map((c) => {
       targetCoin = targetCoin || c;
-      targetCoin = ((c.rewardperday * c.marketvalue * hashrate) > (targetCoin.rewardperday * targetCoin.marketvalue * hashrate)) ? c : targetCoin;
+      let targetCoinHandicap = (targetCoin.algo == activeAlgo) && 1 || algoswitchmultiplier;
+      let testedCoinHandicap = (c.algo == activeAlgo) && 1 || algoswitchmultiplier;
+      targetCoin = ((c.rewardperday * c.marketvalue * testedCoinHandicap * ((c.hashrate || 1) / (targetCoin.hashrate || 1))) > (targetCoin.rewardperday * targetCoin.marketvalue * targetCoinHandicap)) ? c : targetCoin;
     });
     return targetCoin;
   });
@@ -50,18 +56,19 @@ Coin: class {
  * @param {string} [url]
  * @param {string} [api]
  * @param {Ticker} [ticker]
+ * @param {number} hashrate
  */
-    constructor(symbol, name, algo, walletaddress, url, api, ticker) {
+    constructor(symbol, name, algo, walletaddress, url, api, ticker, hashrate = 0) {
       this.symbol = symbol;
       this.name = name || symbol;
       this.login = walletaddress;
       this.algo = algo,
       this.url = url;
-      this.active = false;
+      this.hashrate = hashrate;
+      /** @type {boolean} */
+      this.minersupport = true;
       this.api = api;
-      /**
-      * @type {CoinNetwork}
-      */
+      /** @type {CoinNetwork} */
       this.network = {};
       this.ticker = ticker || {};
       this.coinunit = 1000000000;

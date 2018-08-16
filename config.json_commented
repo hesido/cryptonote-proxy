@@ -47,6 +47,8 @@
 				"port":"9999",
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
+				/* passwordtemplate is optional. You can either override the password sent from miner entirely,
+				   or you can format it using 'mycustomtext:{%1}.morecustomstuff' , where {%1} will be replaced by text from miner sent password. */
 				"passwordtemplate": "XUNworker-{%1}"
 			},{
 				"symbol":"etn",

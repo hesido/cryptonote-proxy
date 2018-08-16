@@ -75,11 +75,9 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var idx;
 
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	coin = workerSettings[user].activeCoinId = pools[user][idx].symbol;
-	//coin = workerSettings[user].activeCoinId;
+	coin = pools[user][idx].symbol;
+
 	workerSettings[user].activeCoin = workerSettings[user].coins.filter((c) => c.symbol === coin)[0];
-	
-	console.log(workerSettings[user].activeCoin)
 
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
@@ -113,7 +111,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		
 		if(request.result && request.result.job)
 		{
-			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin.algo) {
+			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 				request.result.job.algo = workerSettings[user].activeCoin.algo;
 			}
 			var mybuf = new  Buffer(request.result.job.target, "hex");
@@ -141,7 +139,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 			var mybuf = new  Buffer(request.params.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 		
-			if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin.algo) {
+			if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 				request.params.algo = workerSettings[user].activeCoin.algo;
 			}
 
@@ -155,7 +153,6 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}
 			
 		localsocket.write(JSON.stringify(request)+"\n");
-		console.log(JSON.stringify(request, null, 2))
 	});
 	
 	remotesocket.on('close', function(had_error,text) {
@@ -194,14 +191,13 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
 			}
 			remotesocket.write(JSON.stringify(data)+"\n");
-			console.log(JSON.stringify(data, null, 2))
 		}
 	}
 
 	return poolCB;
 };
 
-function createResponder(localsocket,user,pass,algoList){
+function createResponder(localsocket,user,pass,algoList,algoPerf){
 
 	var myWorkerId;
 
@@ -217,22 +213,33 @@ function createResponder(localsocket,user,pass,algoList){
 		connected = true;
 	};
 
-	workerSettings[user].algoList = algoList;
-	var poolCB = attachPool(localsocket,workerSettings[user].activeCoinId||config.default,true,idCB,user,pass);
+	if(workerSettings[user].algoList = algoList) {
+		for (let coin of workerSettings[user].coins) coin.minersupport = false;
+		for (let algo of algoList) workerSettings[user].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
+	}
 
+	if(workerSettings[user].algoPerf = algoPerf) {
+		for (let algo of Object.keys(algoPerf)) workerSettings[user].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = algoPerf[algo]);
+	}
 
+	var poolCB;
 
-	var switchCB = function(newcoin,newuser){
+	var switchCB = function(newcoin,newuser,auto,firstTime = false){
+		if (user!==newuser) return;
 
-		if(user!==newuser) return;
-
-		logger.info('-- switch worker to '+newcoin+' ('+pass+')');
+		logger.info('-- ' + (auto ? "Auto " : "") + 'switch '+user+' to '+newcoin+' ('+pass+')');
 		connected = false;
 		
-		poolCB('stop');
-		poolCB = attachPool(localsocket,newcoin,false,idCB,user,pass);
+		if (poolCB) poolCB('stop');
+		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass);
+
+		if(workerSettings[user].UIset.usePushMessaging)
+		pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`);
 	};
 	
+	let activeCoinSymbol = workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default;
+	switchCB(activeCoinSymbol,user,false,true);
+
 	switchEmitter.on('switch',switchCB);
 
 	var callback = function(type,request){
@@ -284,7 +291,7 @@ const workerserver = net.createServer(function (localsocket) {
 		if(request.method === 'login')
 		{
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
-			responderCB = createResponder(localsocket,request.params.login,request.params.pass, request.params.algo || null);
+			responderCB = createResponder(localsocket,request.params.login,request.params.pass, request.params.algo || null, request.params["algo-perf"] || null);
 		}else{
 			if(!responderCB)
 			{
@@ -345,9 +352,6 @@ io.on('connection', function(socket){
 		pusher.apiToken = config.pushbulletApiToken;
 		pusher.timeFrameMins = config.joinpushmessageswithinXminutes;
 
-		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].activeCoinId)[0];
-		if (!activeCoinStillInConfig) workerSettings[user].activeCoinId = "";
-
 		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
 
 		if(user) respondToUser(user);
@@ -370,7 +374,7 @@ io.on('connection', function(socket){
 		if(workerSettings[user]) {
 			socket.emit('uiupdate', {
 				coins: workerSettings[user].coins,
-				active: workerSettings[user].activeCoinId,
+				active: workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol,
 				workers: {
 					list: workerhashrates[user]||{},
 					servertime:	((new Date).getTime())/1000
@@ -378,8 +382,8 @@ io.on('connection', function(socket){
 				uiset: workerSettings[user].UIset
 			});
 
-			if(workerSettings[user].activeCoinId) {
-				logger.info('-> current for '+user+': ' + workerSettings[user].activeCoinId);
+			if(workerSettings[user].activeCoin) {
+				logger.info('-> current for '+user+': ' + workerSettings[user].activeCoin.symbol);
 			} else {
 				logger.info('-> current for '+user+': not set');
 			}
@@ -405,7 +409,7 @@ io.on('connection', function(socket){
 		}
 		await Promise.all(promiseChain).catch((error) => console.log(error));
 		socket.emit('uiupdate', {
-			active: (workerSettings[user].activeCoinId||config.default),
+			active: (workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default),
 			workers: {
 				list: workerhashrates[user]||{},
 				servertime:	((new Date).getTime())/1000
@@ -414,7 +418,16 @@ io.on('connection', function(socket){
 		});
 	}
 
-	socket.on('switch', switchCoin);
+
+	socket.on('switch', function(user, coinidx) {
+		let targetCoin = workerSettings[user].coins.filter(c => c.symbol == coinidx)[0];
+		if (targetCoin.symbol == workerSettings[user].activeCoin.symbol) return;
+		if (!targetCoin.minersupport) {
+			socket.emit('usererror', `Miner does not support algo for coin ${targetCoin.symbol}.`);
+			return;
+		}
+		switchEmitter.emit('switch',coinidx, user, false);
+	});
 
 	socket.on('disconnect', function(reason){
 		if(timeoutObj) clearTimeout(timeoutObj);
@@ -445,10 +458,10 @@ function EvaluateConfig() {
 function InitializeCoins() {
 	runTimeSettings.userList = Object.keys(pools),
 	runTimeSettings.userList.map((username) => {
-		let activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoinId;
+		let activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;
 		workerSettings[username] = {
 			coins: [],
-			activeCoinId: activeCoinIDX,
+			activeCoin: null,
 			UIset: {autoCoinSwitch: false}
 		};
 
@@ -463,8 +476,21 @@ function InitializeCoins() {
 				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
 				marketname: pool.ticker.marketname,
 				jsonpath: pool.ticker.jsonpath || "price",
-			}));
+			}, pool.hashrate || 1));
 		}
+
+		workerSettings.activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
+
+		let algoList, algoPerf;
+		if(algoList = workerSettings[username].algoList) {
+			for (let coin of workerSettings[username].coins) coin.minersupport = false;
+			for (let algo of algoList) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
+		}
+
+		if(algoPerf = workerSettings[username].algoPerf) {
+			for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = algoPerf[algo]);
+		}
+		
 	});
 
 	pusher.ApiToken = config.pushbulletApiToken;
@@ -473,22 +499,15 @@ function InitializeCoins() {
 
 async function EvaluateCoinSwitch(user) {
 	if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
-	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
+	let switchpenaltymultiplier = (config.EvaluateSwitchEveryXMinutes > 0)
+			? 1 - (config.AlgoSwitchDownTimeSeconds || 0) / ((config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60)
+			: 1;
+
+	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins.filter((c)=> c.minersupport), workerSettings[user].activeCoin, switchpenaltymultiplier);
 
 	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin)
 		{
-			if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);	
+			if (!workerSettings[user].activeCoin || candidateCoin.symbol !== workerSettings[user].activeCoin.symbol) switchEmitter.emit('switch', candidateCoin.symbol, user, true);	
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
 		}
 }
-
-function switchCoin(user, coinidx, auto = false) {
-	logger.info((auto ? "Auto" : "") + '->'+coinidx+' ('+user+')');
-	workerSettings[user].activeCoinId = coinidx;
-	switchEmitter.emit('switch',coinidx,user);
-	//dev: currently, the change is reflected on web ui by actively requesting UIupdate. May broadcast to all sockets dealing with the user.
-	//socket.emit('uiupdate', { active:coinidx });
-	if(workerSettings[user].UIset.usePushMessaging)
-		pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`);
-}
-

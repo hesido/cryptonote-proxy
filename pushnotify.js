@@ -54,7 +54,7 @@ class pushnotify {
             this.messagesentduringtimeframe = 0;            
             return;
         }
-        let message, combinedMessage = "", title = `${this.messages.length} messages since last notification`;
+        let message, combinedMessage = "", messageCount = this.messages.length, title = `${this.messages.length} message${messageCount > 1 ? "s" : ""} since last notification`;
         while(message = this.messages.shift())
             combinedMessage += message.title + "\n" + message.body +"\n\n";
         this.pushrestricttimeout = null;

@@ -8,7 +8,7 @@ var CoinMethods = {
 /**
  * @typedef { {symbol: string, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
- * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, hasError: boolean, updatetime: number} } Ticker
+ * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, converttobtc: string, hasError: boolean, updatetime: number} } Ticker
  */
 
  /**
@@ -87,7 +87,7 @@ Coin: class {
             this.network.difficulty = response.data.network.difficulty;
 
             if(!(this.network.blockheight = response.data.network.height))  {throw new Error("Wrong api type")};;
-            this.network.lastblockdatetime = response.data.network.timestamp;
+            this.network.lastblockdatetime = response.data.pool.stats.lastBlockFound / 1000;
             this.coinunit = response.data.config.coinUnits || this.coinunit;
             //this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
             this.network.reward = response.data.network.reward / this.coinunit;
@@ -142,11 +142,14 @@ Coin: class {
         this.ticker.hasError = false;
 
         let response = await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.marketname)).catch((error) => {throw new Error(error);});
+        let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
+
+        let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data[this.ticker.jsonpath] || 1;
 
         if(response.data.error) {throw new Error("API response error")};
         this.ticker.updatetime = ((new Date).getTime())/1000;
 
-        return this.marketvalue = response.data[this.ticker.jsonpath];
+        return this.marketvalue = response.data[this.ticker.jsonpath] * btcconvertmultiplier;
       }
       catch(error) {
         this.ticker.hasError = true;

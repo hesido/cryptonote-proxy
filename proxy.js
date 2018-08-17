@@ -484,6 +484,7 @@ function InitializeCoins() {
 			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.algo || null, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
 				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
 				marketname: pool.ticker.marketname,
+				converttobtc: pool.ticker.converttobtc,
 				jsonpath: pool.ticker.jsonpath || "price",
 			}, pool.hashrate || 1));
 		}

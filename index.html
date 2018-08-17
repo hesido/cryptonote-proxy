@@ -112,7 +112,7 @@
 							'<th>Coin</th>' +
 							'<th>Nethash</th>' +
 							'<th>LastBlock</th>' +
-							'<th>BTC Value</th>' +
+							'<th>Satoshi<br />Value</th>' +
 							'<th>Daily Mined<br />(<span class="workerhashrate">1</span> kH/s)</th>' +
 							'<th>Daily BTC<br />(<span class="workerhashrate">1</span> kH/s)</th>' +
 							'<th>More Info</th>' +
@@ -244,7 +244,7 @@
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
 						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
 						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
-						row.find( ".marketvalue" ).text((coin.marketvalue) ? LimitFractionalDigits(coin.marketvalue) : "N/A");
+						row.find( ".marketvalue" ).text((coin.marketvalue) ? (coin.marketvalue < 0.00000001) ? LimitFractionalDigits(coin.marketvalue * 100000000, 2) : Math.round(coin.marketvalue * 100000000) : "N/A");
 						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate) : "N/A");
 						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
 						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate) : "Not set");

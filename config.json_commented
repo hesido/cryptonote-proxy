@@ -35,7 +35,7 @@
 				"host":"45.32.171.89",
 				"port":"9999",
 				"url":"http://dummypool.com",
-				/* miner network api. Preferably the same as the one you are mining, but does not have to be. Required if you want to use auto coin-switch. */
+				/* Optional miner network api. Preferably the same as the one you are mining, but does not have to be. Required if you want to use auto coin-switch. */
 				"api":"http://a.x.y.z/api",
 				/* ticker is optional. Required if you want to use auto coin-switch. */
 				"ticker": {
@@ -43,15 +43,20 @@
 					"marketname": "btc-itns"
 				}
 			},{
-				"symbol":"xun",
-				"name":"Xunhfkjfhlkdfjglkdfjgdlkfgjdlkfgjdflkg",
+				"symbol":"solace",
+				"name":"solilklkdlkdlkldkldkldkldkldkldkdlkdlkdlkl",
 				"host":"78.47.92.206",
 				"port":"9999",
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
 				/* passwordtemplate is optional. You can either override the password sent from miner entirely,
 				   or you can format it using 'mycustomtext:{%1}.morecustomstuff' , where {%1} will be replaced by text from miner sent password. */
-				"passwordtemplate": "XUNworker-{%1}"
+				"passwordtemplate": "w:{%1}",
+				"ticker": {
+					"marketname": "ltc-solace",
+					/* Market to convert to BTC if the market above is not a btc market, this allows sub satoshi calculations for coins under a satoshi*/
+					"converttobtc": "btc-ltc" 
+				}
 			},{
 				"symbol":"etn",
 				"name":"etndfglkdjfgldkjfgkldjfglkjfg",

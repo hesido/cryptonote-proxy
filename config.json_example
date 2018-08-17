@@ -25,15 +25,20 @@
 				"ticker": {
 					"marketname": "btc-itns"
 				}
-			},{
-				"symbol":"xun",
-				"name":"Xunhfkjfhlkdfjglkdfjgdlkfgjdlkfgjdflkg",
+			},
+			{
+				"symbol":"solace",
+				"name":"solilklkdlkdlkldkldkldkldkldkldkdlkdlkdlkl",
 				"host":"78.47.92.206",
 				"port":"9999",
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
-				"passwordtemplate": "XUNworker-{%1}"
-			},{
+				"passwordtemplate": "w:{%1}",
+				"ticker": {
+					"marketname": "ltc-solace",
+					"converttobtc": "btc-ltc" 
+			}
+			,{
 				"symbol":"etn",
 				"name":"etndfglkdjfgldkjfgkldjfglkjfg",
 				"host":"pool.etn.spacepools.org",

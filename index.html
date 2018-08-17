@@ -63,6 +63,7 @@
 			var servertime = 0;
 			var localtimeskew = 0;
 			var coinList;
+			var activeCoinId;
 			$(function () {
 
 				$('#user').val(docCookies.getItem('login')||'');
@@ -77,6 +78,7 @@
 						$('#user').val(user);
 						docCookies.setItem('login',user);
 						$('#coins').empty();
+						$('span#minerconnection').text("Detecting");
 						socket.emit('user',user);
 						}
 					);
@@ -149,6 +151,9 @@
 						runtimesettings.userList.map((user) => $("<option />", { text: user, value: user }).appendTo("#userselector"));
 						$('#userselector').val($('#user').val());
 					}
+					if (update.connectionstatus) {
+						$('span#minerconnection').text(update.connectionstatus);
+					}
 					if (update.uiset) {
 						console.log(update.uiset);
 						let uiset = update.uiset;
@@ -162,6 +167,7 @@
 					if (update.active) {
 						$('.coin > .swit').removeClass('activating activated');
 						$('#switch_' + update.active).addClass('activated');
+						activeCoinId = update.active;
 					}
 					if (update.workers) {
 						workerList = update.workers.list;
@@ -227,19 +233,22 @@
 				}
 
 				function CoinsToTable(){
+
+					let activeCoin = coinList.filter((c) => c.symbol == activeCoinId)[0];
+
 					for (var coin of coinList) {
-						//todo: get hashrate from worker
-						let hashrate = 1;
-						var seconds = (new Date().getTime() / 1000) - localtimeskew;
+						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * workerhashrate : coin.hashrate || 1;
+	
+						let seconds = (new Date().getTime() / 1000) - localtimeskew;
 						let row = $("#row_" + coin.symbol);
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
 						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
 						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
 						row.find( ".marketvalue" ).text((coin.marketvalue) ? LimitFractionalDigits(coin.marketvalue) : "N/A");
-						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * (workerhashrate || 1)) : "N/A");
+						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate) : "N/A");
 						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
-						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(coin.hashrate) : "Not set");
-						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * (workerhashrate || 1)) : "N/A");
+						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate) : "Not set");
+						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate) : "N/A");
 					}
 					$('table#coins').css("opacity", "1.0");
 					
@@ -304,10 +313,11 @@
 				background-color: mediumorchid;
 			}
 			#userselector {
-				margin: 15px 10px;
+				margin: 0.75em 1.25em;
+				width: 90%;
 			}
 			.menu {
-				margin:20px 10px;
+				margin:0.5em 0.25em;
 				padding:0;
 				}
 			.menu > a{
@@ -318,8 +328,8 @@
 				background:#eeeeee;
 				border:1px solid #dddddd;
 				color:#000000;
-				padding:10px;
-				margin:10px 0;
+				padding:0.2em;
+				margin:0;
 				-moz-border-radius:2px;
 				-webkit-border-radius:2px;
 				border-radius:2px;
@@ -344,10 +354,10 @@
 			.dropdown-content {
 				display: none;
 				position: absolute;
-				left:25px;
+				right:20px;
 				background-color: #f9f9f9;
-				min-width: 200px;
-				box-shadow: 2px 4px 4px 0px rgba(0,0,0,0.2);
+				min-width: 160px;
+				box-shadow: 2px 4px 4px 1px rgba(0,0,0,0.2);
 				padding: 0.4em;
 				margin: 0px;
 				z-index: 1;
@@ -369,15 +379,43 @@
 				transform: rotate(45deg);
 				-webkit-transform: rotate(45deg);
 			}
+
+			input#user {
+				width: 95%;
+				height: 100%;
+				border-color: #ff0000 #0000ff;
+				text-align: center;
+				font-size:1em;
+				font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace;
+			}
+
+			a#loaduser {
+				width: 80%;
+				margin: 0 auto;
+			}
+
+			div.minerstatus {
+				font-size: 50%;
+			}
 		</style>
 	</head>
 	<body>
 
 		<div style="text-align: center;font-size:2em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace">
-			<select id='userselector' style='width: 25%; float:left;'></select>
-			<input style="width: 60%;height: 100%; border-color: #ff0000 #0000ff; text-align: center;font-size:1em;font-family:Consolas, Andale Mono, Lucida Console, Lucida Sans Typewriter, Monaco, Courier New, monospace" id="user" type="text" value=""/>
+			<div style='width: 25%; float:left;'>
+				<select id='userselector'></select>
+				<div class='minerstatus'>
+					Status: <span id='minerconnection'>Detecting</span>
+				</div>
+			</div>
+			<div style='width: 60%; float:right;'>			
+				<input id="user" type="text" value=""/>
+				<div class="menu">
+					<a id="loaduser" href="javascript:void(0);">Load</a>
+				</div>
+			</div>
 			<div class="menu">
-				<a id="loaduser" href="javascript:void(0);">Load</a>
+				
 				<div id='uisettings'>
 					<label class="settinglabel" for="UIset_usePushMessaging">Use push messages
 						<input id="UIset_usePushMessaging" type="checkbox">

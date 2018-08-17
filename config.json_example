@@ -8,8 +8,9 @@
 	"httppassword":"",
 	"default":"nh",
 	"tickerdefaultapi":"tradeogre",
-	"MineCoinForAtLeastXMinutes" : 8,
+	"MineCoinForAtLeastXMinutes" : 12,
 	"EvaluateSwitchEveryXMinutes" : 4,
+	"AlgoSwitchDownTimeSeconds" : 45,
 	"pools":
 	{
 		"userA":[

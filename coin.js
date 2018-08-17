@@ -89,7 +89,8 @@ Coin: class {
             if(!(this.network.blockheight = response.data.network.height))  {throw new Error("Wrong api type")};;
             this.network.lastblockdatetime = response.data.network.timestamp;
             this.coinunit = response.data.config.coinUnits || this.coinunit;
-            this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
+            //this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
+            this.network.reward = response.data.network.reward / this.coinunit;
             this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
             this.network.coindifficultytarget = response.data.config.coinDifficultyTarget;
             this.network.updatetime = ((new Date).getTime())/1000;

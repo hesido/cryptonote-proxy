@@ -100,7 +100,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 		logger.info('new login to '+coin+' ('+pass+')');
 		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
-		remotesocket.write(JSON.stringify(request)+"\n");	
+		remotesocket.write(JSON.stringify(request)+"\n");
+		workerSettings[user].connected = true;
 	});
 	
 	remotesocket.on('data', function(data) {
@@ -158,6 +159,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	remotesocket.on('close', function(had_error,text) {
 		logger.info("pool conn to "+coin+" ended ("+pass+')');
 		if(workerhashrates[user]) delete workerhashrates[user][pass];
+		workerSettings[user].connected = false;
 		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
@@ -199,13 +201,15 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 function createResponder(localsocket,user,pass,algoList,algoPerf){
 
-	var myWorkerId;
-
-	var connected = false;
-
 	if(!workerSettings[user]) {
 		logger.error(user + "configuration not found.");
+		return;
 	}
+
+	var myWorkerId;
+
+	var connected = false
+	workerSettings[user].connected = false;
 
 	var idCB = function(id){
 		logger.info(' set worker response id to '+id+' ('+pass+')');
@@ -228,7 +232,9 @@ function createResponder(localsocket,user,pass,algoList,algoPerf){
 		if (user!==newuser) return;
 
 		logger.info('-- ' + (auto ? "Auto " : "") + 'switch '+user+' to '+newcoin+' ('+pass+')');
+
 		connected = false;
+		workerSettings[user].connected = false;
 		
 		if (poolCB) poolCB('stop');
 		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass);
@@ -410,6 +416,7 @@ io.on('connection', function(socket){
 		await Promise.all(promiseChain).catch((error) => console.log(error));
 		socket.emit('uiupdate', {
 			active: (workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default),
+			connectionstatus: (workerSettings[user].connected) ? "Connected" : "Disconnected",
 			workers: {
 				list: workerhashrates[user]||{},
 				servertime:	((new Date).getTime())/1000
@@ -421,11 +428,13 @@ io.on('connection', function(socket){
 
 	socket.on('switch', function(user, coinidx) {
 		let targetCoin = workerSettings[user].coins.filter(c => c.symbol == coinidx)[0];
-		if (targetCoin.symbol == workerSettings[user].activeCoin.symbol) return;
+		if (workerSettings[user].activeCoin && targetCoin && targetCoin.symbol == workerSettings[user].activeCoin.symbol) return;
 		if (!targetCoin.minersupport) {
 			socket.emit('usererror', `Miner does not support algo for coin ${targetCoin.symbol}.`);
 			return;
 		}
+		workerSettings[user].activeCoin = workerSettings[user].coins.filter((c) => c.symbol === coinidx)[0];
+
 		switchEmitter.emit('switch',coinidx, user, false);
 	});
 

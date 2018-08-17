@@ -18,9 +18,11 @@
 	/* Currently, only tradeogre is supported for market price api */
 	"tickerdefaultapi":"tradeogre",
     /* After switching, mine coin for at least this many minutes */
-	"MineCoinForAtLeastXMinutes" : 8,
+	"MineCoinForAtLeastXMinutes" : 12,
     /* Try coin switching every x minutes */
 	"EvaluateSwitchEveryXMinutes" : 4,
+	/* Downtime when changing algos */
+	"AlgoSwitchDownTimeSeconds" : 45,
 	"pools":
 	{
 		"userA":[

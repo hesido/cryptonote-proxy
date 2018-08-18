@@ -239,8 +239,8 @@ function createResponder(localsocket,user,pass,algoList,algoPerf){
 		if (poolCB) poolCB('stop');
 		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass);
 
-		if(workerSettings[user].UIset.usePushMessaging)
-		pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`);
+		if(!firstTime && workerSettings[user].UIset.usePushMessaging)
+			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
 	};
 	
 	let activeCoinSymbol = workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default;

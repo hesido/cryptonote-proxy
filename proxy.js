@@ -515,9 +515,12 @@ async function EvaluateCoinSwitch(user) {
 
 	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins.filter((c)=> c.minersupport), workerSettings[user].activeCoin, switchpenaltymultiplier);
 
-	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin)
-		{
-			if (!workerSettings[user].activeCoin || candidateCoin.symbol !== workerSettings[user].activeCoin.symbol) switchEmitter.emit('switch', candidateCoin.symbol, user, true);	
+	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin) {
+		if (!workerSettings[user].activeCoin || candidateCoin.symbol !== workerSettings[user].activeCoin.symbol) {
+			switchEmitter.emit('switch', candidateCoin.symbol, user, true);
+			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user);
+		} else {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
 		}
+	}
 }

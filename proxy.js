@@ -217,14 +217,10 @@ function createResponder(localsocket,user,pass,algoList,algoPerf){
 		connected = true;
 	};
 
-	if(workerSettings[user].algoList = algoList) {
-		for (let coin of workerSettings[user].coins) coin.minersupport = false;
-		for (let algo of algoList) workerSettings[user].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
-	}
+	workerSettings[user].algoList = algoList;
+	workerSettings[user].algoPerf = algoPerf;
 
-	if(workerSettings[user].algoPerf = algoPerf) {
-		for (let algo of Object.keys(algoPerf)) workerSettings[user].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = algoPerf[algo]);
-	}
+	ProcessAlgoList(user);
 
 	var poolCB;
 
@@ -461,16 +457,26 @@ io.on('connection', function(socket){
 
 function EvaluateConfig() {
 	config = JSON.parse(stripjson(fs.readFileSync('config.json',"utf8")));
+	algomapping = JSON.parse(stripjson(fs.readFileSync('algomapping.json',"utf8")));
 	pools = config.pools;
 }
 
 function InitializeCoins() {
 	runTimeSettings.userList = Object.keys(pools),
 	runTimeSettings.userList.map((username) => {
-		let activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;
+		let activeCoinIDX = existingAlgoList = existingAlgoPerf = null;
+		
+		if(workerSettings[username]) {
+			activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;
+			existingAlgoList =  workerSettings[username].algoList;
+			existingAlgoPerf =  workerSettings[username].algoPerf;
+		}
+
 		workerSettings[username] = {
 			coins: [],
 			activeCoin: null,
+			algoList: existingAlgoList,
+			algoPerf: existingAlgoPerf,
 			UIset: {autoCoinSwitch: false}
 		};
 
@@ -489,18 +495,9 @@ function InitializeCoins() {
 			}, pool.hashrate || 1));
 		}
 
-		workerSettings.activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
+		workerSettings[username].activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
 
-		let algoList, algoPerf;
-		if(algoList = workerSettings[username].algoList) {
-			for (let coin of workerSettings[username].coins) coin.minersupport = false;
-			for (let algo of algoList) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
-		}
-
-		if(algoPerf = workerSettings[username].algoPerf) {
-			for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = algoPerf[algo]);
-		}
-		
+		ProcessAlgoList(username);
 	});
 
 	pusher.ApiToken = config.pushbulletApiToken;
@@ -522,5 +519,27 @@ async function EvaluateCoinSwitch(user) {
 		} else {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
 		}
+	}
+}
+
+function ProcessAlgoList(username) {
+	let algoList, algoPerf;
+	if (algoList = workerSettings[username].algoList) {
+		for (let coin of workerSettings[username].coins) {
+			/* normalize user configurations */
+			coin.algo = coin.algo && algomapping[coin.algo] || coin.algo;
+			coin.minersupport = false;
+		}
+		for (let algo of algoList)
+			{
+				/* Readjust algo names in coins to miner's standard so proxy can talk back the way miner understands */
+				workerSettings[username].coins.filter((c) => c.algo && c.algo == algomapping[algo]).map((c)=> c.algo == algo);
+				workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
+			}
+	}
+
+	/* User MoneroOcean/SRB hashrate stratum extension when possible */
+	if(algoPerf = workerSettings[username].algoPerf) {
+		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = algoPerf[algo]);
 	}
 }

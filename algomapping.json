@@ -1,0 +1,19 @@
+{
+    "cryptonight"	        : "cn",
+    "cryptonight/0"	        : "cn/0",
+    "cryptonight/1"         : "cn/1",
+    "cryptonight/xtl"       : "cn/xtl",
+    "cryptonight/msr"       : "cn/msr",
+    "cryptonight/xao"       : "cn/xao",
+    "cryptonight/rto"       : "cn/rto",
+    "cryptonight-lite"      : "cn-lite",	
+    "cryptonight-lite/0"    : "cn-lite/0",	
+    "cryptonight-lite/1"    : "cn-lite/1",
+    "cryptonight-lite/ipbc" : "cn-lite/ipbc",
+    "cryptonight-heavy"     : "cn-heavy",
+    "cryptonight-heavy/xhv" : "cn-heavy/xhv",
+    "cryptonight-heavy/tube": "cn-heavy/tube",
+    /*SRB Naming*/
+    "cryptonight-heavy/0"   : "cn-heavy",
+    "cn-heavy/0"            : "cn-heavy"
+}

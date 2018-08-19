@@ -215,7 +215,7 @@
 						}
 					}
 						
-						$('span.workerhashrate').text(workerhashrate.toFixed(1));
+						$('span.workerhashrate').text((workerhashrate || 1).toFixed(1));
 					
 						$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
 
@@ -237,7 +237,7 @@
 					let activeCoin = coinList.filter((c) => c.symbol == activeCoinId)[0];
 
 					for (var coin of coinList) {
-						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * workerhashrate : (coin.hashrate || 1);
+						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * (workerhashrate || 1) : (coin.hashrate || 1);
 						let seconds = (new Date().getTime() / 1000) - localtimeskew;
 						let row = $("#row_" + coin.symbol);
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");

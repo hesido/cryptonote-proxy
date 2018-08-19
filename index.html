@@ -155,7 +155,6 @@
 						$('span#minerconnection').text(update.connectionstatus);
 					}
 					if (update.uiset) {
-						console.log(update.uiset);
 						let uiset = update.uiset;
 						let uiSettings = Object.keys(uiset);
 						$("label.settinglabel").hide();
@@ -210,7 +209,6 @@
 					if(workerList) {
 						var keys = Object.keys(workerList);
 						for(var worker of keys){
-							if(worker == user) workerhashrate = workerList[worker].hashrate;
 							var date = (referencetime - workerList[worker].time).toFixed(0) + " seconds ago";
 							$('#workers').append($('<span>'+worker+' : '+date+' : '+workerList[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
 							if (workerList[worker].time > (servertime-(60*5))) combined+=workerList[worker].hashrate;
@@ -227,6 +225,8 @@
 							row.find(".netblock").text((coin.network.lastblockdatetime) ? (referencetime - coin.network.lastblockdatetime).toFixed(0) + 's' : "N/A");
 						}
 					}
+
+					workerhashrate = combined;
 				
 					if(workerList)
 						workerUpdateTimeout = (windowisfocused) ? window.setTimeout(RefreshWorkerHashrates, 1000) : null;
@@ -237,8 +237,7 @@
 					let activeCoin = coinList.filter((c) => c.symbol == activeCoinId)[0];
 
 					for (var coin of coinList) {
-						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * workerhashrate : coin.hashrate || 1;
-	
+						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * workerhashrate : (coin.hashrate || 1);
 						let seconds = (new Date().getTime() / 1000) - localtimeskew;
 						let row = $("#row_" + coin.symbol);
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");

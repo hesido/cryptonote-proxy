@@ -533,13 +533,13 @@ function ProcessAlgoList(username) {
 		for (let algo of algoList)
 			{
 				/* Readjust algo names in coins to miner's standard so proxy can talk back the way miner understands */
-				workerSettings[username].coins.filter((c) => c.algo && c.algo == algomapping[algo]).map((c)=> c.algo == algo);
+				workerSettings[username].coins.filter((c) => c.algo && c.algo == algomapping[algo]).map((c)=> c.algo = algo);
 				workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
 			}
 	}
 
-	/* User MoneroOcean/SRB hashrate stratum extension when possible */
+	/* User MoneroOcean/SRB hashrate stratum extension to fill hashrates if not defined by user */
 	if(algoPerf = workerSettings[username].algoPerf) {
-		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = algoPerf[algo]);
+		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = c.hashrate || algoPerf[algo]);
 	}
 }

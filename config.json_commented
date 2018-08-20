@@ -31,6 +31,7 @@
 				/* algo is optional, names should be compatible with XMRig Proxy standard algo names */
 				/* will be required when you want different algo coin switch */
 				"algo":"",
+				/* this is the wallet address, can include pool enabled format for setting difficulty etc.*/
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",
 				"port":"9999",

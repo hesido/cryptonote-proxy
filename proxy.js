@@ -345,7 +345,7 @@ logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
 	
-	var timeoutObj;
+	//var timeoutObj;
 
 	socket.on('reload',function(user) {
 		EvaluateConfig();
@@ -371,7 +371,7 @@ io.on('connection', function(socket){
 	socket.on('requestupdate', updateUI);
 
 	function respondToUser(user) {
-		if(timeoutObj) clearTimeout(timeoutObj);
+		//if(timeoutObj) clearTimeout(timeoutObj);
 
 		if(workerSettings[user]) {
 			socket.emit('uiupdate', {
@@ -435,7 +435,7 @@ io.on('connection', function(socket){
 	});
 
 	socket.on('disconnect', function(reason){
-		if(timeoutObj) clearTimeout(timeoutObj);
+		//if(timeoutObj) clearTimeout(timeoutObj);
 	});
 
 	socket.on('setruntimesetting', function(settingproperty, value, user) {
@@ -470,6 +470,7 @@ function InitializeCoins() {
 			activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;
 			existingAlgoList =  workerSettings[username].algoList;
 			existingAlgoPerf =  workerSettings[username].algoPerf;
+			if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
 		}
 
 		workerSettings[username] = {

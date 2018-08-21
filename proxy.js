@@ -470,7 +470,7 @@ function InitializeCoins() {
 			activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;
 			existingAlgoList =  workerSettings[username].algoList;
 			existingAlgoPerf =  workerSettings[username].algoPerf;
-			if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
+			if (workerSettings[username].coinswitchtimeout) clearTimeout(workerSettings[username].coinswitchtimeout);
 		}
 
 		workerSettings[username] = {

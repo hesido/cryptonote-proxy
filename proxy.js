@@ -37,8 +37,9 @@ process.on("uncaughtException", function(error) {
 
 const runTimeSettings = {userList: []};
 const workerSettings = {};
+const workerResponders = {};
+const workerhashrates = {};
 var config;
-var workerhashrates = {};
 EvaluateConfig();
 
 var pusher = new pushNotify(config.pushbulletApiToken, 1 , config.joinpushmessageswithinXminutes);
@@ -159,6 +160,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	remotesocket.on('close', function(had_error,text) {
 		logger.info("pool conn to "+coin+" ended ("+pass+')');
 		if(workerhashrates[user]) delete workerhashrates[user][pass];
+		//to do: the following doesn't take into account that multipler workers can connect to a "user"
 		workerSettings[user].connected = false;
 		if(had_error) logger.error(' --'+text);
 	});
@@ -202,7 +204,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 function createResponder(localsocket,user,pass,algoList,algoPerf){
 
 	if(!workerSettings[user]) {
-		logger.error(user + "configuration not found.");
+		logger.error(user + " configuration not found.");
 		return;
 	}
 
@@ -293,7 +295,14 @@ const workerserver = net.createServer(function (localsocket) {
 		if(request.method === 'login')
 		{
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
-			responderCB = createResponder(localsocket,request.params.login,request.params.pass, request.params.algo || null, request.params["algo-perf"] || null);
+			let existingResponder, login = request.params.login, pass = request.params.pass || "unspecified"
+			if(existingResponder = workerResponders[login+pass]) {
+				existingResponder('stop');
+				workerResponders[login+pass] = null;
+				logger.warn('Existing connection for the same worker detected - worker:' + pass);
+				logger.warn('Killing old connection for '+ pass +' - if this is a separate worker, please specify a different password in miner\'s pool settings');
+			}
+			workerResponders[login+pass] = responderCB = createResponder(localsocket, login, pass, request.params.algo || null, request.params["algo-perf"] || null);
 		}else{
 			if(!responderCB)
 			{

@@ -37,8 +37,9 @@ process.on("uncaughtException", function(error) {
 
 const runTimeSettings = {userList: []};
 const workerSettings = {};
+const workerResponders = {};
+const workerhashrates = {};
 var config;
-var workerhashrates = {};
 EvaluateConfig();
 
 var pusher = new pushNotify(config.pushbulletApiToken, 1 , config.joinpushmessageswithinXminutes);
@@ -75,11 +76,9 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	var idx;
 
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
-	coin = workerSettings[user].activeCoinId = pools[user][idx].symbol;
-	//coin = workerSettings[user].activeCoinId;
+	coin = pools[user][idx].symbol;
+
 	workerSettings[user].activeCoin = workerSettings[user].coins.filter((c) => c.symbol === coin)[0];
-	
-	console.log(workerSettings[user].activeCoin)
 
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
 	
@@ -102,7 +101,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 		logger.info('new login to '+coin+' ('+pass+')');
 		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
-		remotesocket.write(JSON.stringify(request)+"\n");	
+		remotesocket.write(JSON.stringify(request)+"\n");
+		workerSettings[user].connected = true;
 	});
 	
 	remotesocket.on('data', function(data) {
@@ -113,7 +113,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		
 		if(request.result && request.result.job)
 		{
-			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin.algo) {
+			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 				request.result.job.algo = workerSettings[user].activeCoin.algo;
 			}
 			var mybuf = new  Buffer(request.result.job.target, "hex");
@@ -141,7 +141,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 			var mybuf = new  Buffer(request.params.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 		
-			if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin.algo) {
+			if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 				request.params.algo = workerSettings[user].activeCoin.algo;
 			}
 
@@ -155,12 +155,13 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}
 			
 		localsocket.write(JSON.stringify(request)+"\n");
-		console.log(JSON.stringify(request, null, 2))
 	});
 	
 	remotesocket.on('close', function(had_error,text) {
 		logger.info("pool conn to "+coin+" ended ("+pass+')');
 		if(workerhashrates[user]) delete workerhashrates[user][pass];
+		//to do: the following doesn't take into account that multipler workers can connect to a "user"
+		workerSettings[user].connected = false;
 		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
@@ -194,22 +195,23 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
 			}
 			remotesocket.write(JSON.stringify(data)+"\n");
-			console.log(JSON.stringify(data, null, 2))
 		}
 	}
 
 	return poolCB;
 };
 
-function createResponder(localsocket,user,pass,algoList){
+function createResponder(localsocket,user,pass,algoList,algoPerf){
+
+	if(!workerSettings[user]) {
+		logger.error(user + " configuration not found.");
+		return;
+	}
 
 	var myWorkerId;
 
-	var connected = false;
-
-	if(!workerSettings[user]) {
-		logger.error(user + "configuration not found.");
-	}
+	var connected = false
+	workerSettings[user].connected = false;
 
 	var idCB = function(id){
 		logger.info(' set worker response id to '+id+' ('+pass+')');
@@ -218,21 +220,30 @@ function createResponder(localsocket,user,pass,algoList){
 	};
 
 	workerSettings[user].algoList = algoList;
-	var poolCB = attachPool(localsocket,workerSettings[user].activeCoinId||config.default,true,idCB,user,pass);
+	workerSettings[user].algoPerf = algoPerf;
 
+	ProcessAlgoList(user);
 
+	var poolCB;
 
-	var switchCB = function(newcoin,newuser){
+	var switchCB = function(newcoin,newuser,auto,firstTime = false){
+		if (user!==newuser) return;
 
-		if(user!==newuser) return;
+		logger.info('-- ' + (auto ? "Auto " : "") + 'switch '+user+' to '+newcoin+' ('+pass+')');
 
-		logger.info('-- switch worker to '+newcoin+' ('+pass+')');
 		connected = false;
+		workerSettings[user].connected = false;
 		
-		poolCB('stop');
-		poolCB = attachPool(localsocket,newcoin,false,idCB,user,pass);
+		if (poolCB) poolCB('stop');
+		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass);
+
+		if(!firstTime && workerSettings[user].UIset.usePushMessaging)
+			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
 	};
 	
+	let activeCoinSymbol = workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default;
+	switchCB(activeCoinSymbol,user,false,true);
+
 	switchEmitter.on('switch',switchCB);
 
 	var callback = function(type,request){
@@ -284,7 +295,14 @@ const workerserver = net.createServer(function (localsocket) {
 		if(request.method === 'login')
 		{
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
-			responderCB = createResponder(localsocket,request.params.login,request.params.pass, request.params.algo || null);
+			let existingResponder, login = request.params.login, pass = request.params.pass || "unspecified"
+			if(existingResponder = workerResponders[login+pass]) {
+				existingResponder('stop');
+				workerResponders[login+pass] = null;
+				logger.warn('Existing connection for the same worker detected - worker:' + pass);
+				logger.warn('Killing old connection for '+ pass +' - if this is a separate worker, please specify a different password in miner\'s pool settings');
+			}
+			workerResponders[login+pass] = responderCB = createResponder(localsocket, login, pass, request.params.algo || null, request.params["algo-perf"] || null);
 		}else{
 			if(!responderCB)
 			{
@@ -336,7 +354,7 @@ logger.info("start mining proxy on port %d ", localport);
 
 io.on('connection', function(socket){
 	
-	var timeoutObj;
+	//var timeoutObj;
 
 	socket.on('reload',function(user) {
 		EvaluateConfig();
@@ -344,9 +362,6 @@ io.on('connection', function(socket){
 
 		pusher.apiToken = config.pushbulletApiToken;
 		pusher.timeFrameMins = config.joinpushmessageswithinXminutes;
-
-		let activeCoinStillInConfig = workerSettings[user].coins.filter(c => c.symbol == workerSettings[user].activeCoinId)[0];
-		if (!activeCoinStillInConfig) workerSettings[user].activeCoinId = "";
 
 		socket.emit('uiupdate', {runtimesettings: runTimeSettings});
 
@@ -365,12 +380,12 @@ io.on('connection', function(socket){
 	socket.on('requestupdate', updateUI);
 
 	function respondToUser(user) {
-		if(timeoutObj) clearTimeout(timeoutObj);
+		//if(timeoutObj) clearTimeout(timeoutObj);
 
 		if(workerSettings[user]) {
 			socket.emit('uiupdate', {
 				coins: workerSettings[user].coins,
-				active: workerSettings[user].activeCoinId,
+				active: workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol,
 				workers: {
 					list: workerhashrates[user]||{},
 					servertime:	((new Date).getTime())/1000
@@ -378,8 +393,8 @@ io.on('connection', function(socket){
 				uiset: workerSettings[user].UIset
 			});
 
-			if(workerSettings[user].activeCoinId) {
-				logger.info('-> current for '+user+': ' + workerSettings[user].activeCoinId);
+			if(workerSettings[user].activeCoin) {
+				logger.info('-> current for '+user+': ' + workerSettings[user].activeCoin.symbol);
 			} else {
 				logger.info('-> current for '+user+': not set');
 			}
@@ -405,7 +420,8 @@ io.on('connection', function(socket){
 		}
 		await Promise.all(promiseChain).catch((error) => console.log(error));
 		socket.emit('uiupdate', {
-			active: (workerSettings[user].activeCoinId||config.default),
+			active: (workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default),
+			connectionstatus: (workerSettings[user].connected) ? "Connected" : "Disconnected",
 			workers: {
 				list: workerhashrates[user]||{},
 				servertime:	((new Date).getTime())/1000
@@ -414,10 +430,21 @@ io.on('connection', function(socket){
 		});
 	}
 
-	socket.on('switch', switchCoin);
+
+	socket.on('switch', function(user, coinidx) {
+		let targetCoin = workerSettings[user].coins.filter(c => c.symbol == coinidx)[0];
+		if (workerSettings[user].activeCoin && targetCoin && targetCoin.symbol == workerSettings[user].activeCoin.symbol) return;
+		if (!targetCoin.minersupport) {
+			socket.emit('usererror', `Miner does not support algo for coin ${targetCoin.symbol}.`);
+			return;
+		}
+		workerSettings[user].activeCoin = workerSettings[user].coins.filter((c) => c.symbol === coinidx)[0];
+
+		switchEmitter.emit('switch',coinidx, user, false);
+	});
 
 	socket.on('disconnect', function(reason){
-		if(timeoutObj) clearTimeout(timeoutObj);
+		//if(timeoutObj) clearTimeout(timeoutObj);
 	});
 
 	socket.on('setruntimesetting', function(settingproperty, value, user) {
@@ -439,16 +466,27 @@ io.on('connection', function(socket){
 
 function EvaluateConfig() {
 	config = JSON.parse(stripjson(fs.readFileSync('config.json',"utf8")));
+	algomapping = JSON.parse(stripjson(fs.readFileSync('algomapping.json',"utf8")));
 	pools = config.pools;
 }
 
 function InitializeCoins() {
 	runTimeSettings.userList = Object.keys(pools),
 	runTimeSettings.userList.map((username) => {
-		let activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoinId;
+		let activeCoinIDX = existingAlgoList = existingAlgoPerf = null;
+		
+		if(workerSettings[username]) {
+			activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;
+			existingAlgoList =  workerSettings[username].algoList;
+			existingAlgoPerf =  workerSettings[username].algoPerf;
+			if (workerSettings[username].coinswitchtimeout) clearTimeout(workerSettings[username].coinswitchtimeout);
+		}
+
 		workerSettings[username] = {
 			coins: [],
-			activeCoinId: activeCoinIDX,
+			activeCoin: null,
+			algoList: existingAlgoList,
+			algoPerf: existingAlgoPerf,
 			UIset: {autoCoinSwitch: false}
 		};
 
@@ -462,9 +500,14 @@ function InitializeCoins() {
 			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.algo || null, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
 				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
 				marketname: pool.ticker.marketname,
+				converttobtc: pool.ticker.converttobtc,
 				jsonpath: pool.ticker.jsonpath || "price",
-			}));
+			}, pool.hashrate || 1));
 		}
+
+		workerSettings[username].activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
+
+		ProcessAlgoList(username);
 	});
 
 	pusher.ApiToken = config.pushbulletApiToken;
@@ -473,22 +516,40 @@ function InitializeCoins() {
 
 async function EvaluateCoinSwitch(user) {
 	if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
-	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins);
+	let switchpenaltymultiplier = (config.EvaluateSwitchEveryXMinutes > 0)
+			? 1 - (config.AlgoSwitchDownTimeSeconds || 0) / ((config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60)
+			: 1;
 
-	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin)
-		{
-			if (candidateCoin.symbol !== workerSettings[user].activeCoinId) switchCoin(user, candidateCoin.symbol, true);	
+	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins.filter((c)=> c.minersupport), workerSettings[user].activeCoin, switchpenaltymultiplier);
+
+	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin) {
+		if (!workerSettings[user].activeCoin || candidateCoin.symbol !== workerSettings[user].activeCoin.symbol) {
+			switchEmitter.emit('switch', candidateCoin.symbol, user, true);
+			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user);
+		} else {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
 		}
+	}
 }
 
-function switchCoin(user, coinidx, auto = false) {
-	logger.info((auto ? "Auto" : "") + '->'+coinidx+' ('+user+')');
-	workerSettings[user].activeCoinId = coinidx;
-	switchEmitter.emit('switch',coinidx,user);
-	//dev: currently, the change is reflected on web ui by actively requesting UIupdate. May broadcast to all sockets dealing with the user.
-	//socket.emit('uiupdate', { active:coinidx });
-	if(workerSettings[user].UIset.usePushMessaging)
-		pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${coinidx}\n${(new Date()).toLocaleString()}`);
-}
+function ProcessAlgoList(username) {
+	let algoList, algoPerf;
+	if (algoList = workerSettings[username].algoList) {
+		for (let coin of workerSettings[username].coins) {
+			/* normalize user configurations */
+			coin.algo = coin.algo && algomapping[coin.algo] || coin.algo;
+			coin.minersupport = false;
+		}
+		for (let algo of algoList)
+			{
+				/* Readjust algo names in coins to miner's standard so proxy can talk back the way miner understands */
+				workerSettings[username].coins.filter((c) => c.algo && c.algo == algomapping[algo]).map((c)=> c.algo = algo);
+				workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
+			}
+	}
 
+	/* User MoneroOcean/SRB hashrate stratum extension to fill hashrates if not defined by user */
+	if(algoPerf = workerSettings[username].algoPerf) {
+		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = c.hashrate || algoPerf[algo]);
+	}
+}

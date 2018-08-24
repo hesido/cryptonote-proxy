@@ -1,6 +1,6 @@
 {
   "name": "cryptonote-switching-relay-proxy",
-  "version": "4.1.1",
+  "version": "4.2.1",
   "license": "0BSD",
   "author": "sebseb",
   "contributors": [
@@ -28,6 +28,6 @@
     "winston": "^2.4.3"
   },
   "engines": {
-    "node": ">=4"
+    "node": ">=8"
   }
 }

@@ -29,7 +29,6 @@ class pushnotify {
         if (!this.pusher) return;
         if (this.pushrestricttimeout == null || this.messagesentduringtimeframe < this.maxMessagesPerTimeFrame) {
             this.pusher.note({}, title, message, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
-            console.log(message);
             if (this.maxMessagesPerTimeFrame) {
                 ++this.messagesentduringtimeframe;
                 this.pushrestricttimeout = this.pushrestricttimeout || setTimeout(() => this.pushAllQueuedMessages(), this.timeFrameMins * 60 * 1000);
@@ -50,14 +49,14 @@ class pushnotify {
     }
 
     pushAllQueuedMessages() {
+        this.pushrestricttimeout = null;
         if(this.messages.length == 0) {
             this.messagesentduringtimeframe = 0;            
             return;
         }
-        let message, combinedMessage = "", title = `${this.messages.length} messages since last notification`;
+        let message, combinedMessage = "", messageCount = this.messages.length, title = `${this.messages.length} message${messageCount > 1 ? "s" : ""} since last notification`;
         while(message = this.messages.shift())
             combinedMessage += message.title + "\n" + message.body +"\n\n";
-        this.pushrestricttimeout = null;
         this.pusher.note({}, title, combinedMessage, (error, response) => {if(error) console.log(`Pushbullet API: ${error}`)});
         this.messagesentduringtimeframe = 1;
     }

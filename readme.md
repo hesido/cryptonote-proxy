@@ -1,5 +1,7 @@
-# CryptoNote Switching Relay Proxy v4.2.1
+# CryptoNote Switching Relay Proxy v4.2.2
+***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
+![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
 
 ## Basic Instructions
 https://nodejs.org/
@@ -11,16 +13,19 @@ https://nodejs.org/
 
 [Windows Installation Guide for pre-fork version by Seb](https://github.com/sebseb7/cryptonote-proxy/wiki/Installation-guide-for-cryptonote-proxy)
 The installation guide provides the basics for running the proxy. There are small configuration details that the Switching Relay Proxy requires. For this, please see the *config.json_commented* file. The proxy needs you to create *config.json* and you can edit either the plain example file, or the commented config file, and rename it to *config.json*.
-Support: hesido@yahoo.com
+Support: <hesido@yahoo.com>
 
 ## Version History
-### Changes from 4.1.1
+### Changes in 4.2.2
+* Kill obsolete tcp sockets not properly ended by miner during algo changes
+* Fix bug getting hashrates from miner when miner supports algo-perf extension
+### Changes in 4.2.1
 * Added **multi algo switch support** through xmrig stratum extensions. At the time of release **SRBMiner** and **XMRig CPU** supports native algo-switching
 * UI changes for a leaner look
 * Fixed miner reward amount when there's coinbase fee involved (This fixes Bittube miner reward problem which showed lower earnings compared to actual earnings)
 * Fixed a bug causing the coin evalulation to be called multiple times.
 
-### Changes from 4.1.0:
+### Changes in 4.1.1:
 * Added aggregate push notifications (Aggregate all messages within time span set in configuration)
 * Minor bug fixes
 * Config.json now can have comments

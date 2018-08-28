@@ -210,7 +210,9 @@ function createResponder(localsocket,user,pass,algoList,algoPerf){
 
 	var myWorkerId;
 
-	var connected = false
+	var connected = false;
+	var suppressErrors = false;
+	//ToDo: The following needs to be re-considered for proper assessment of active connection
 	workerSettings[user].connected = false;
 
 	var idCB = function(id){
@@ -248,11 +250,20 @@ function createResponder(localsocket,user,pass,algoList,algoPerf){
 
 	var callback = function(type,request){
 	
-		if(type === 'stop')
+		if(type === 'kill')
+		{
+			poolCB('stop');
+			logger.info('kill local socket and disconnect from pool ('+pass+')');
+			switchEmitter.removeListener('switch', switchCB);
+			suppressErrors = true;
+			localsocket.destroy();
+		} else if(type === 'stop')
 		{
 			poolCB('stop');
 			logger.info('disconnect from pool ('+pass+')');
 			switchEmitter.removeListener('switch', switchCB);
+		} else if(type === 'state') {
+			return {"suppressErrors": suppressErrors}
 		}
 		else if(request.method && request.method === 'submit') 
 		{
@@ -297,10 +308,10 @@ const workerserver = net.createServer(function (localsocket) {
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
 			let existingResponder, login = request.params.login, pass = request.params.pass || "unspecified"
 			if(existingResponder = workerResponders[login+pass]) {
-				existingResponder('stop');
 				workerResponders[login+pass] = null;
 				logger.warn('Existing connection for the same worker detected - worker:' + pass);
 				logger.warn('Killing old connection for '+ pass +' - if this is a separate worker, please specify a different password in miner\'s pool settings');
+				existingResponder('kill');
 			}
 			workerResponders[login+pass] = responderCB = createResponder(localsocket, login, pass, request.params.algo || null, request.params["algo-perf"] || null);
 		}else{
@@ -316,7 +327,10 @@ const workerserver = net.createServer(function (localsocket) {
 	});
 	
 	localsocket.on('error', function(text) {
-		logger.error("worker error ",text);
+		let suppressErrors = responderCB && responderCB("state").suppressErrors;
+
+		if(!suppressErrors) logger.error("worker error ",text);
+
 		if(!responderCB)
 		{
 			logger.error('error before login');
@@ -328,13 +342,14 @@ const workerserver = net.createServer(function (localsocket) {
 	});
 
 	localsocket.on('close', function(had_error) {
-		
-		if(had_error) 
-			logger.error(had_error)
-		else
+		let suppressErrors = responderCB && responderCB("state").suppressErrors;
+		if(had_error && !suppressErrors) {
+			logger.error(had_error);
+		} else {
 			workerserver.getConnections(function(err,number){
 				logger.info("worker connection ended - connections left:"+number);
 			});
+		} 
 	
 		if(!responderCB)
 		{
@@ -502,7 +517,7 @@ function InitializeCoins() {
 				marketname: pool.ticker.marketname,
 				converttobtc: pool.ticker.converttobtc,
 				jsonpath: pool.ticker.jsonpath || "price",
-			}, pool.hashrate || 1));
+			}, pool.hashrate || 0));
 		}
 
 		workerSettings[username].activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
@@ -550,6 +565,6 @@ function ProcessAlgoList(username) {
 
 	/* User MoneroOcean/SRB hashrate stratum extension to fill hashrates if not defined by user */
 	if(algoPerf = workerSettings[username].algoPerf) {
-		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = c.hashrate || algoPerf[algo]);
+		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = c.hashrate || algoPerf[algo] || 1);
 	}
 }

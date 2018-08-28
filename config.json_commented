@@ -31,7 +31,7 @@
 				/* algo is optional, names should be compatible with XMRig Proxy standard algo names */
 				/* will be required when you want different algo coin switch */
 				"algo":"",
-				/* this is the wallet address, can include pool enabled format for setting difficulty etc.*/
+				/* 'name' is the wallet address, can include pool enabled format for setting difficulty etc.*/
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",
 				"port":"9999",
@@ -51,8 +51,12 @@
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
 				/* passwordtemplate is optional. You can either override the password sent from miner entirely,
-				   or you can format it using 'mycustomtext:{%1}.morecustomstuff' , where {%1} will be replaced by text from miner sent password. */
-				"passwordtemplate": "w:{%1}",
+				   or you can format it usign {%1} in place of miner password; e.g.:
+				   if the miner's set password is "mysuperrig",
+				   and the passwordtemplate is'w={%1}', pool will be sent: 'w=mysuperrig'
+				   You can use this to format the password for your pool's requirements
+				   */
+				"passwordtemplate": "w={%1}",
 				"ticker": {
 					"marketname": "ltc-solace",
 					/* Market to convert to BTC if the market above is not a btc market, this allows sub satoshi calculations for coins under a satoshi*/

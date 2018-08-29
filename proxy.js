@@ -115,7 +115,17 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		{
 			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 				request.result.job.algo = workerSettings[user].activeCoin.algo;
+				if(firstConn && !request.result.extensions) request.result.extensions = [];
+				if(request.result.extensions && Array.isArray(request.result.extensions) && !request.result.extensions.includes("algo")) request.result.extensions.push("algo"); 
 			}
+
+			//modernize algo negotiation during pass through
+			//may disable and replace pass through if we encounter further problems
+			if(request.result.job.algo && request.result.job.variant) {
+				if(request.result.job.variant != "-1") request.result.job.algo = request.result.job.algo + "/" + request.result.job.variant;
+				delete (request.result.job.variant)
+			}
+
 			var mybuf = new  Buffer(request.result.job.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
@@ -145,6 +155,12 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				request.params.algo = workerSettings[user].activeCoin.algo;
 			}
 
+			//modernize pass through - see notes above
+			if(request.params.algo && request.params.variant) {
+				if(request.params.variant != "-1") request.params.algo = request.params.algo + "/" + request.params.variant;
+				delete (request.params.variant)
+			}
+
 			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
 		}
 		else if(request.method) 
@@ -153,7 +169,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}else{
 			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 		}
-			
+
 		localsocket.write(JSON.stringify(request)+"\n");
 	});
 	

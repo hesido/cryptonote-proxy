@@ -122,7 +122,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 			//modernize algo negotiation during pass through
 			//may disable and replace pass through if we encounter further problems
 			if(request.result.job.algo && request.result.job.variant) {
-				if(request.result.job.variant != "-1") request.result.job.algo = request.result.job.algo + "/" + request.result.job.variant;
+				if(request.result.job.variant != "-1" && request.result.job.algo.indexOf("/") == -1) request.result.job.algo = request.result.job.algo + "/" + request.result.job.variant;
 				delete (request.result.job.variant)
 			}
 

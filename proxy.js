@@ -1,3 +1,4 @@
+'use strict'
 const net = require("net");
 const events = require('events');
 const fs = require('fs');
@@ -39,7 +40,7 @@ const runTimeSettings = {userList: []};
 const workerSettings = {};
 const workerResponders = {};
 const workerhashrates = {};
-var config;
+var config, algomapping, pools;
 EvaluateConfig();
 
 var pusher = new pushNotify(config.pushbulletApiToken, 1 , config.joinpushmessageswithinXminutes);
@@ -72,7 +73,7 @@ app.get('/', function(req, res) {
 logger.info("start http interface on port %d ", config.httpport);
 server.listen(config.httpport,'::');
 
-function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
+function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) {
 	var idx;
 
 	for (var pool in pools[user]) idx = (pools[user][pool].symbol === coin) ? pool : (idx || pool);
@@ -97,10 +98,13 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	remotesocket.on('connect', function (data) {
 		if(data) logger.debug('received from pool ('+coin+') on connect:'+data.toString().trim()+' ('+pass+')');
 				
-		passTemplate = pools[user][idx]["passwordtemplate"];
+		let passTemplate = pools[user][idx]["passwordtemplate"],
+			poolLogin = pools[user][idx].name;
+
+		if(diffRequest) poolLogin = poolLogin.replace(/(.+)([.+])(\d+)(([.+].*)|$)/, "$1$2"+diffRequest+"$4");
 
 		logger.info('new login to '+coin+' ('+pass+')');
-		var request = {"id":1,"method":"login","params":{"login":pools[user][idx].name,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
+		let request = {"id":1,"method":"login","params":{"login":poolLogin,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 		workerSettings[user].connected = true;
 	});
@@ -109,13 +113,23 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 
 		if(data)logger.debug('received from pool ('+coin+'):'+data.toString().trim()+' ('+pass+')');
 
-		var request = JSON.parse(data);
+		let request = JSON.parse(data);
 		
 		if(request.result && request.result.job)
 		{
 			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 				request.result.job.algo = workerSettings[user].activeCoin.algo;
+				if(firstConn && !request.result.extensions) request.result.extensions = [];
+				if(request.result.extensions && Array.isArray(request.result.extensions) && !request.result.extensions.includes("algo")) request.result.extensions.push("algo"); 
 			}
+
+			//modernize algo negotiation during pass through
+			//may disable and replace pass through if we encounter further problems
+			if(request.result.job.algo && request.result.job.variant) {
+				if(request.result.job.variant != "-1" && request.result.job.algo.indexOf("/") == -1) request.result.job.algo = request.result.job.algo + "/" + request.result.job.variant;
+				delete (request.result.job.variant)
+			}
+
 			var mybuf = new  Buffer(request.result.job.target, "hex");
 			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
 			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
@@ -145,6 +159,12 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 				request.params.algo = workerSettings[user].activeCoin.algo;
 			}
 
+			//modernize pass through - see notes above
+			if(request.params.algo && request.params.variant) {
+				if(request.params.variant != "-1" && request.params.algo.indexOf("/") == -1) request.params.algo = request.params.algo + "/" + request.params.variant;
+				delete (request.params.variant)
+			}
+
 			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
 		}
 		else if(request.method) 
@@ -153,7 +173,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 		}else{
 			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 		}
-			
+
 		localsocket.write(JSON.stringify(request)+"\n");
 	});
 	
@@ -201,7 +221,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass) {
 	return poolCB;
 };
 
-function createResponder(localsocket,user,pass,algoList,algoPerf){
+function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 
 	if(!workerSettings[user]) {
 		logger.error(user + " configuration not found.");
@@ -237,7 +257,7 @@ function createResponder(localsocket,user,pass,algoList,algoPerf){
 		workerSettings[user].connected = false;
 		
 		if (poolCB) poolCB('stop');
-		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass);
+		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass,diffRequest);
 
 		if(!firstTime && workerSettings[user].UIset.usePushMessaging)
 			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
@@ -302,18 +322,29 @@ const workerserver = net.createServer(function (localsocket) {
 		
 		if(data) logger.debug('received from worker ('+localsocket.remoteAddress+':'+localsocket.remotePort+'):'+data.toString().trim());
 		var request = JSON.parse(data);
-		
+
+
 		if(request.method === 'login')
 		{
 			logger.info('got login from worker %s %s',request.params.login,request.params.pass);
-			let existingResponder, login = request.params.login, pass = request.params.pass || "unspecified"
-			if(existingResponder = workerResponders[login+pass]) {
-				workerResponders[login+pass] = null;
+			let existingResponder, matchDiffPattern, diffRequest = null,
+				login = request.params.login,
+				pass = request.params.pass || "unspecified";
+
+			if (matchDiffPattern = login.match(/(.+)([.+])(\d+)(([.+].*)|$)/)) {
+				login = matchDiffPattern[1];
+				diffRequest = matchDiffPattern[3];
+			}
+
+			if(!workerResponders[login]) workerResponders[login] = {};
+			
+			if(existingResponder = workerResponders[login][pass]) {
+				delete workerResponders[login][pass];
 				logger.warn('Existing connection for the same worker detected - worker:' + pass);
 				logger.warn('Killing old connection for '+ pass +' - if this is a separate worker, please specify a different password in miner\'s pool settings');
 				existingResponder('kill');
 			}
-			workerResponders[login+pass] = responderCB = createResponder(localsocket, login, pass, request.params.algo || null, request.params["algo-perf"] || null);
+			workerResponders[login][pass] = responderCB = createResponder(localsocket, login, pass, diffRequest, request.params.algo || null, request.params["algo-perf"] || null);
 		}else{
 			if(!responderCB)
 			{
@@ -488,7 +519,7 @@ function EvaluateConfig() {
 function InitializeCoins() {
 	runTimeSettings.userList = Object.keys(pools),
 	runTimeSettings.userList.map((username) => {
-		let activeCoinIDX = existingAlgoList = existingAlgoPerf = null;
+		let activeCoinIDX = null, existingAlgoList = null, existingAlgoPerf = null;
 		
 		if(workerSettings[username]) {
 			activeCoinIDX = workerSettings[username] && workerSettings[username].activeCoin && workerSettings[username].activeCoin.symbol;

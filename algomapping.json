@@ -13,7 +13,25 @@
     "cryptonight-heavy"     : "cn-heavy",
     "cryptonight-heavy/xhv" : "cn-heavy/xhv",
     "cryptonight-heavy/tube": "cn-heavy/tube",
-    /*SRB Naming*/
     "cryptonight-heavy/0"   : "cn-heavy",
-    "cn-heavy/0"            : "cn-heavy"
+    "cn-heavy/0"            : "cn-heavy",
+    "cryptonight/b2n"       : "cn/b2n",
+    "cryptonight/ita"       : "cn-heavy/xhv",
+    "cn/ita"                : "cn-heavy/xhv",
+    "cryptonight/mkt"       : "cn/mkt",
+    "cryptonight/mox"       : "cn/mox",
+    "normalv7"              : "cn/1",
+    "heavy"                 : "cn-heavy",
+    "haven"                 : "cn-heavy/xhv",
+    "bittubev2"             : "cn-heavy/tube",
+    "stellitev4"            : "cn/xtl",
+    "fast"                  : "cn/msr",
+    "litev7"                : "cn-lite/1",
+    "alloy"                 : "cn/xao",
+    "artocash"              : "cn/rto",
+    "b2n"                   : "cn/b2n",
+    "italo"                 : "cn-heavy/xhv",
+    "marketcash"            : "cn/mkt",
+    "mox"                   : "cn/mox",
+    "normal"                : "cn"   
 }

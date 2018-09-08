@@ -36,7 +36,8 @@
 				"passwordtemplate": "w:{%1}",
 				"ticker": {
 					"marketname": "ltc-solace",
-					"converttobtc": "btc-ltc" 
+					"converttobtc": "btc-ltc"
+				}
 			}
 			,{
 				"symbol":"etn",

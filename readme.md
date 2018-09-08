@@ -13,6 +13,10 @@ https://nodejs.org/
 
 [Windows Installation Guide for pre-fork version by Seb](https://github.com/sebseb7/cryptonote-proxy/wiki/Installation-guide-for-cryptonote-proxy)
 The installation guide provides the basics for running the proxy. There are small configuration details that the Switching Relay Proxy requires. For this, please see the *config.json_commented* file. The proxy needs you to create *config.json* and you can edit either the plain example file, or the commented config file, and rename it to *config.json*.
+
+[Basic Configuration Guide for Switching Relay Proxy](https://github.com/hesido/cryptonote-switching-relay-proxy/wiki/Basic-Configuration)
+[Multi Algo Configuration Guide for use with SRBMiner](https://github.com/hesido/cryptonote-switching-relay-proxy/wiki/Multi-Algo-switching-setup-using-SRBMiner)
+
 Support: <hesido@yahoo.com>
 
 Contact me at the support mail or at [hesido.com contact page](http://www.hesido.com/base.php?page=general&sub=contact) **if you want to sponsor a feature**.
@@ -21,6 +25,7 @@ For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
 ### Changes in 4.2.3
+* Config.json now understands SRBMiner style namings for the `algo` property.
 * Fix MultiAlgo on some pools that does not communicate with the latest algo negotiation standards, or pools that have poorly interpreted the latest standards.
 * Workers can now request difficulties individually:
     * In `config.json` You need to set a default difficulty using pool's preferred syntax, like before.

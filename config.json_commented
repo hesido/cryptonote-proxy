@@ -25,6 +25,9 @@
 	"AlgoSwitchDownTimeSeconds" : 45,
 	"pools":
 	{
+		/*  User identifier, which contains lists of coins to mine - Many miners (workers) can connect to a single user.
+			On your miner's pool settings, the "wallet" or "user" (where you typically define your wallet address), should be set exactly the same as this name.
+			*/ 
 		"userA":[
 			{
 				"symbol":"itns",

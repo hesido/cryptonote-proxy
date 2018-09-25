@@ -28,6 +28,7 @@
 			},
 			{
 				"symbol":"solace",
+				"isdefault":true,
 				"name":"solilklkdlkdlkldkldkldkldkldkldkdlkdlkdlkl",
 				"host":"78.47.92.206",
 				"port":"9999",
@@ -45,14 +46,21 @@
 				"host":"pool.etn.spacepools.org",
 				"port":"7777",
 				"url":"http://dummypool.com",
-				"api":"http://a.x.y.z/api"
+				"api":"http://a.x.y.z/api",
+				"ticker": {
+					"price": 0.00000005
+				}
 			},{
 				"symbol":"msr",
 				"name":"5q9dflkjdflgkdjfgdfgdfgdfgdfg",
 				"host":"masari.superpools.net",
 				"port":"8889",
 				"url":"http://dummypool.com",
-				"api":"http://a.x.y.z/api"
+				"api":"http://a.x.y.z/api",
+				"ticker": {
+					"marketname": "btc-msr",
+					"pricetype": "market"
+				}
 			},{
 				"symbol":"nh",
 				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",

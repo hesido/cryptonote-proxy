@@ -25,6 +25,11 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.3.1
+* Made proxy nicehash friendly again, fixed regression caused by killing sockets using duplicate passwords when multi-algo mode is not active.
+* Each user defined in config.json can have a unique default coin
+* Made ticker api extensible like the miner api
+
 ### Changes in 4.2.3
 * Config.json now understands SRBMiner style namings for the `algo` property.
 * Fix MultiAlgo on some pools that does not communicate with the latest algo negotiation standards, or pools that have poorly interpreted the latest standards.

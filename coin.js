@@ -6,9 +6,9 @@ const assumestaleafterxseconds = 8;
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {symbol: string, isdefault: boolean, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
- * @typedef { {apibaseurl: string, jsonpath: string, marketname: string, converttobtc: string, hasError: boolean, updatetime: number} } Ticker
+ * @typedef { {priceapi: string, pricetype: string, marketname: string, converttobtc: string, price: number, hasError: boolean, updatetime: number} } Ticker
  */
 
  /**
@@ -57,13 +57,15 @@ Coin: class {
  * @param {string} [api]
  * @param {Ticker} [ticker]
  * @param {number} hashrate
+ * @param {boolean} isdefault
  */
-    constructor(symbol, name, algo, walletaddress, url, api, ticker, hashrate = 0) {
+    constructor(symbol, name, algo, walletaddress, url, api, ticker, isdefault, hashrate) {
       this.symbol = symbol;
       this.name = name || symbol;
       this.login = walletaddress;
       this.algo = algo,
       this.url = url;
+      this.isdefault = isdefault;
       this.hashrate = hashrate;
       /** @type {boolean} */
       this.minersupport = true;
@@ -80,10 +82,10 @@ Coin: class {
           try {
             this.network.hasError = "";
             let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});
-            let hashrate = 1000;
     
             if(response.data.error) {throw new Error("API response error")};
     
+     
             this.network.difficulty = response.data.network.difficulty;
 
             if(!(this.network.blockheight = response.data.network.height))  {throw new Error("Wrong api type")};;
@@ -91,7 +93,7 @@ Coin: class {
             this.coinunit = response.data.config.coinUnits || this.coinunit;
             //this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
             this.network.reward = response.data.network.reward / this.coinunit;
-            this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
+            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
             this.network.coindifficultytarget = response.data.config.coinDifficultyTarget;
             this.network.updatetime = ((new Date).getTime())/1000;
           }
@@ -105,7 +107,6 @@ Coin: class {
           try {
             this.network.hasError = "";
             let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});;
-            let hashrate = 1000;
     
             if(response.data.error) {throw new Error("API response error")};
     
@@ -122,7 +123,7 @@ Coin: class {
             this.network.blockheight = response.data.blockchainHeight;
             //Note: Not sure fair pool api supports dev fees or coinbase fees.
             this.network.reward = response.data.reward / this.coinunit;
-            this.rewardperday = (hashrate * 86400 / this.network.difficulty) * this.network.reward;
+            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
             this.network.updatetime = ((new Date).getTime())/1000;
           }
           catch(error) {
@@ -132,30 +133,39 @@ Coin: class {
         }
   
       };
+
+      this.priceAPIS = {
+        tradeogre: async() => {
+          let pricetypes = {
+            buy: "ask",
+            sell: "bid",
+            market: "price"
+          }
+
+          if (!this.ticker || !this.ticker.marketname) return false;
+          try {
+            this.ticker.hasError = false;
+    
+            let response = await axios.get(urljoin("https://tradeogre.com/api/v1/ticker/", this.ticker.marketname)).catch((error) => {throw new Error(error);});
+            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://tradeogre.com/api/v1/ticker/", this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
+    
+            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data[pricetypes[this.ticker.pricetype]] || 1;
+    
+            if(response.data.error) {throw new Error("API response error")};
+            this.ticker.updatetime = ((new Date).getTime())/1000;
+    
+            return this.marketvalue = response.data[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
+          }
+          catch(error) {
+            this.ticker.hasError = true;
+            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
+            this.marketvalue = 0;
+          }
+        }
+      }
   
       this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})
-    }
-
-    async FetchMarketValue() {
-      if (!this.ticker || !this.ticker.apibaseurl || !this.ticker.marketname) return false;
-      try {
-        this.ticker.hasError = false;
-
-        let response = await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.marketname)).catch((error) => {throw new Error(error);});
-        let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin(this.ticker.apibaseurl, this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
-
-        let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data[this.ticker.jsonpath] || 1;
-
-        if(response.data.error) {throw new Error("API response error")};
-        this.ticker.updatetime = ((new Date).getTime())/1000;
-
-        return this.marketvalue = response.data[this.ticker.jsonpath] * btcconvertmultiplier;
-      }
-      catch(error) {
-        this.ticker.hasError = true;
-        console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
-        this.marketvalue = 0;
-      }
+      this.FetchMarketValue = (this.ticker && !this.ticker.price && this.priceAPIS[this.ticker.priceapi]) || (async () => (this.marketvalue = this.ticker.price) || false);
     }
 
     async getApiType() {

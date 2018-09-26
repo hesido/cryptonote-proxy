@@ -13,7 +13,7 @@
 	/* httpuser and password must be used if you are accessing from the web, but it only provides very basic security. Use at your own risk */
 	"httpuser":"",
 	"httppassword":"",
-	/* Default coin symbol */
+	/* Default coin symbol, can be overriden per user using "isdefault: true" in user config */
 	"default":"nh",
 	/* Currently, only tradeogre is supported for market price api */
 	"tickerdefaultapi":"tradeogre",
@@ -48,6 +48,8 @@
 				}
 			},{
 				"symbol":"solace",
+				/* isdefault allows you to set default coin for each user, overrides "default" setting in the root of config */
+				"isdefault":true,
 				"name":"solilklkdlkdlkldkldkldkldkldkldkdlkdlkdlkl",
 				"host":"78.47.92.206",
 				"port":"9999",
@@ -71,14 +73,30 @@
 				"host":"pool.etn.spacepools.org",
 				"port":"7777",
 				"url":"http://dummypool.com",
-				"api":"http://a.x.y.z/api"
+				"api":"http://a.x.y.z/api",
+				"ticker": {
+					/* Price allows you to set a custom price that you think is appropriate for the coin, instead of getting the value from an exchange api.
+					   This allows mining based on difficulty and also speculative mining for coins that do not yet have an exchange rate.*/
+					"price": 0.00000005
+				}
 			},{
 				"symbol":"msr",
 				"name":"5q9dflkjdflgkdjfgdfgdfgdfgdfg",
 				"host":"masari.superpools.net",
 				"port":"8889",
 				"url":"http://dummypool.com",
-				"api":"http://a.x.y.z/api"
+				"api":"http://a.x.y.z/api",
+				"ticker": {
+					"marketname": "btc-msr",
+					/* Pricetype allows you to use the type of price you'd like to be evaluated.
+					   Possible values: sell|market|buy , with "sell" being the default.
+					   "Sell" is the price that you can sell the coin in the order book.
+					   "Market" is the price that the last trade has been executed at the exchange.
+					   "Buy" is the price that you can buy the coin in the order book.
+					   */
+					"pricetype": "market"
+				}
+
 			},{
 				"symbol":"nh",
 				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",

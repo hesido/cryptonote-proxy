@@ -26,6 +26,8 @@ For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
 ### Changes in 4.3.1
+* You can now select price-type for each coin: "sell", "market", and "buy" price. "sell" price is default, this is the price that you can sell the coin.
+* You can now set a custom price for each coin - this allows you to profit-switch to coin based on difficulty without being affected by market movements, or include coins that are not yet on exchanges to auto-switching based on the price you speculate/intend to sell the coin.
 * Made proxy nicehash friendly again, fixed regression caused by killing sockets using duplicate passwords when multi-algo mode is not active.
 * Each user defined in config.json can have a unique default coin
 * Made ticker api extensible like the miner api

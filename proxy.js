@@ -262,9 +262,8 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 		if(!firstTime && workerSettings[user].UIset.usePushMessaging)
 			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
 	};
-	
-	let activeCoinSymbol = workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default;
-	switchCB(activeCoinSymbol,user,false,true);
+	let activeCoin = workerSettings[user].activeCoin || workerSettings[user].coins.filter((c) => c.isdefault)[0];
+	switchCB(activeCoin && activeCoin.symbol || config.default,user,false,true);
 
 	switchEmitter.on('switch',switchCB);
 
@@ -276,11 +275,16 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 			logger.info('kill local socket and disconnect from pool ('+pass+')');
 			switchEmitter.removeListener('switch', switchCB);
 			suppressErrors = true;
+			let responderIndex = workerResponders[user][pass].indexOf(callback);
+			if (responderIndex > -1) workerResponders[user][pass].splice(responderIndex, 1);
+			console.log(workerResponders[user][pass].length);
 			localsocket.destroy();
 		} else if(type === 'stop')
 		{
 			poolCB('stop');
 			logger.info('disconnect from pool ('+pass+')');
+			let responderIndex = workerResponders[user][pass].indexOf(callback);
+			if (responderIndex > -1) workerResponders[user][pass].splice(responderIndex, 1);
 			switchEmitter.removeListener('switch', switchCB);
 		} else if(type === 'state') {
 			return {"suppressErrors": suppressErrors}
@@ -337,14 +341,14 @@ const workerserver = net.createServer(function (localsocket) {
 			}
 
 			if(!workerResponders[login]) workerResponders[login] = {};
-			
-			if(existingResponder = workerResponders[login][pass]) {
-				delete workerResponders[login][pass];
+			if(!workerResponders[login][pass])  workerResponders[login][pass] = []
+		
+			if(workerSettings[login].algoList && workerSettings[login].algoList.length > 1 && (existingResponder = workerResponders[login][pass].pop())) {
 				logger.warn('Existing connection for the same worker detected - worker:' + pass);
 				logger.warn('Killing old connection for '+ pass +' - if this is a separate worker, please specify a different password in miner\'s pool settings');
 				existingResponder('kill');
 			}
-			workerResponders[login][pass] = responderCB = createResponder(localsocket, login, pass, diffRequest, request.params.algo || null, request.params["algo-perf"] || null);
+			workerResponders[login][pass].push(responderCB = createResponder(localsocket, login, pass, diffRequest, request.params.algo || null, request.params["algo-perf"] || null));
 		}else{
 			if(!responderCB)
 			{
@@ -465,8 +469,11 @@ io.on('connection', function(socket){
 			promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
 		}
 		await Promise.all(promiseChain).catch((error) => console.log(error));
+
+		let activeCoin = workerSettings[user].activeCoin || workerSettings[user].coins.filter((c) => c.isdefault)[0];
+	
 		socket.emit('uiupdate', {
-			active: (workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol || config.default),
+			active: activeCoin && activeCoin.symbol || config.default,
 			connectionstatus: (workerSettings[user].connected) ? "Connected" : "Disconnected",
 			workers: {
 				list: workerhashrates[user]||{},
@@ -544,11 +551,12 @@ function InitializeCoins() {
 		for (var poolid in pools[username]) {
 			let pool = pools[username][poolid];
 			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.algo || null, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
-				apibaseurl: pool.ticker.apibaseurl || "https://tradeogre.com/api/v1/ticker/",
+				priceapi: pool.ticker.priceapi || "tradeogre",
 				marketname: pool.ticker.marketname,
 				converttobtc: pool.ticker.converttobtc,
-				jsonpath: pool.ticker.jsonpath || "price",
-			}, pool.hashrate || 0));
+				pricetype: pool.ticker.pricetype || "sell",
+				price: pool.ticker.price,
+			}, pool.isdefault, pool.hashrate || 0));
 		}
 
 		workerSettings[username].activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
@@ -588,7 +596,7 @@ function ProcessAlgoList(username) {
 		}
 		for (let algo of algoList)
 			{
-				/* Readjust algo names in coins to miner's standard so proxy can talk back the way miner understands */
+				/* Re-adjust algo names in coins to miner's standard so proxy can talk back the way miner understands */
 				workerSettings[username].coins.filter((c) => c.algo && c.algo == algomapping[algo]).map((c)=> c.algo = algo);
 				workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.minersupport = true);
 			}

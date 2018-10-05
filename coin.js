@@ -87,10 +87,12 @@ Coin: class {
             this.network.difficulty = response.data.network.difficulty;
 
             if(!(this.network.blockheight = response.data.network.height))  {throw new Error("Wrong api type")};
+            
             this.network.lastblockdatetime = response.data.pool.stats.lastBlockFound / 1000;
             this.coinunit = response.data.config.coinUnits || this.coinunit;
             //this.network.reward = (response.data.network.reward - (response.data.network.devfee || 0) - (response.data.network.coinbase || 0)) / this.coinunit;
-            this.network.reward = response.data.network.reward / this.coinunit;
+            if(!(this.network.reward = response.data.network.reward)) {throw new Error("Wrong api type")};
+            this.network.reward /= this.coinunit;
             this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
             this.network.coindifficultytarget = response.data.config.coinDifficultyTarget;
             this.network.updatetime = ((new Date).getTime())/1000;
@@ -114,8 +116,8 @@ Coin: class {
 
             this.network.coindifficultytarget = response.data.config.coinDifficultyTarget
 
-            response = await axios.get(urljoin(this.api, "network")).catch(() => {throw new Error("URL failed to load")});;
-            this.network.blockheight = response.data.blockchainHeight;
+            response = await axios.get(urljoin(this.api, "network")).catch(() => {throw new Error("URL failed to load")});
+            if(!(this.network.blockheight = response.data.blockchainHeight)) {throw new Error("Wrong api type")};
             //Note: Not sure fair pool api supports dev fees or coinbase fees.
             this.network.reward = response.data.reward / this.coinunit;
             this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
@@ -133,9 +135,10 @@ Coin: class {
             let response = await axios.get(urljoin(this.api, "network/stats")).catch(() => {throw new Error("URL failed to load")});
             if(response.data.error) {throw new Error("API response error")};
     
-            if(!(this.network.difficulty = response.data.difficulty))  {throw new Error("Wrong api type")};
+            if(!(this.network.difficulty = response.data.difficulty) || !(this.network.blockheight = response.data.height))  {throw new Error("Wrong api type")};
             //Note: coin unit is not supported by this api. Assuming default cryptonote coin unit.
             //this.coinunit = response.data.config.coinUnits || this.coinunit;
+           
             this.network.reward = response.data.value / this.coinunit;
             this.network.blockheight = response.data.height;
 
@@ -151,7 +154,30 @@ Coin: class {
             if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
             this.network.hasError = error;
           }
+        },
+
+        cryptonotenodejs: async () => {
+          try {
+            this.network.hasError = "";
+            let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});
+            if(response.data.error) {throw new Error("API response error")};
+    
+            if(!(this.network.difficulty = response.data.network.difficulty))  {throw new Error("Wrong api type")};
+            this.coinunit = response.data.config.coinUnits || this.coinunit;
+            this.network.reward = response.data.lastblock.reward / this.coinunit;
+            this.network.blockheight = response.data.network.height;
+
+            this.network.lastblockdatetime = response.data.pool.lastBlockFound / 1000;
+            this.network.coindifficultytarget = response.data.config.coinDifficultyTarget;
+            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
+            this.network.updatetime = ((new Date).getTime())/1000;
+          }
+          catch(error) {
+            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
+            this.network.hasError = error;
+          }
         }
+
   
       };
 

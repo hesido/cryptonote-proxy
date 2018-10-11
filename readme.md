@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.3.1
+# CryptoNote Switching Relay Proxy v4.3.2
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,9 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.3.2
+* Added Monero's new algo to algo map list.
+* Added a new pool api type for a total of 4 types of pool apis (all pool api's are auto detected)
 ### Changes in 4.3.1
 * You can now select price-type for each coin: "sell", "market", and "buy" price. "sell" price is default, this is the price that you can sell the coin.
 * You can now set a custom price for each coin - this allows you to profit-switch to coin based on difficulty without being affected by market movements, or include coins that are not yet on exchanges to auto-switching based on the price you speculate/intend to sell the coin.

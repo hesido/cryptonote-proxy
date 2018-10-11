@@ -15,7 +15,7 @@
 	"httppassword":"",
 	/* Default coin symbol, can be overriden per user using "isdefault: true" in user config */
 	"default":"nh",
-	/* Currently, only tradeogre is supported for market price api */
+	/* tradeogre / cryptopia / maplechange is supported for market price api */
 	"tickerdefaultapi":"tradeogre",
     /* After switching, mine coin for at least this many minutes */
 	"MineCoinForAtLeastXMinutes" : 12,
@@ -87,8 +87,13 @@
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
 				"ticker": {
-					"marketname": "btc-msr",
-					/* Pricetype allows you to use the type of price you'd like to be evaluated.
+					/* priceapi lets you select the ticker api individually, use it if you want to use a ticker api
+					   other than the default ticker api (tradeogre).
+					   Possible values: tradeogre|cryptopia|maplechange */
+					"priceapi": "maplechange",
+					/* The market name must be used similarly to the exchange. */
+					"marketname": "msrbtc",
+					/* pricetype allows you to use the type of price you'd like to be evaluated.
 					   Possible values: sell|market|buy , with "sell" being the default.
 					   "sell" is the price that you can sell the coin in the order book.
 					   "market" is the price that the last trade has been executed at the exchange.

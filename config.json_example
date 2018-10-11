@@ -58,7 +58,8 @@
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
 				"ticker": {
-					"marketname": "btc-msr",
+					"priceapi": "maplechange",
+					"marketname": "msrbtc",
 					"pricetype": "market"
 				}
 			},{

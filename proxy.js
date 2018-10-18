@@ -104,7 +104,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 		if(diffRequest) poolLogin = poolLogin.replace(/(.+)([.+])(\d+)(([.+].*)|$)/, "$1$2"+diffRequest+"$4");
 
 		logger.info('new login to '+coin+' ('+pass+')');
-		let request = {"id":1,"method":"login","params":{"login":poolLogin,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"XMRig/2.5.0"}};
+		let request = {"id":1,"method":"login","params":{"login":poolLogin,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"SRBMiner Cryptonight AMD GPU miner/1.6.8"}};
 		remotesocket.write(JSON.stringify(request)+"\n");
 		workerSettings[user].connected = true;
 	});

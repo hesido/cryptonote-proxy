@@ -113,68 +113,73 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 
 		if(data)logger.debug('received from pool ('+coin+'):'+data.toString().trim()+' ('+pass+')');
 
-		let request = JSON.parse(data);
-		
-		if(request.result && request.result.job)
-		{
-			if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
-				request.result.job.algo = workerSettings[user].activeCoin.algo;
-				if(firstConn && !request.result.extensions) request.result.extensions = [];
-				if(request.result.extensions && Array.isArray(request.result.extensions) && !request.result.extensions.includes("algo")) request.result.extensions.push("algo"); 
-			}
-
-			//modernize algo negotiation during pass through
-			//may disable and replace pass through if we encounter further problems
-			if(request.result.job.algo && request.result.job.variant) {
-				if(request.result.job.variant != "-1" && request.result.job.algo.indexOf("/") == -1) request.result.job.algo = request.result.job.algo + "/" + request.result.job.variant;
-				delete (request.result.job.variant)
-			}
-
-			var mybuf = new  Buffer(request.result.job.target, "hex");
-			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
-			logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
-			setWorker(request.result.id);
-			if(!firstConn)
+		let messages = data.toString().split('\n');
+		let n = messages.length;
+		for(var i=0; i<n; i++) {
+			if(messages[i].length == 0) continue;
+			let request = JSON.parse(messages[i]);
+			if(request.result && request.result.job)
 			{
-				logger.info('  new job from login reply ('+pass+')');
-				var job = request.result.job;
-				request = {
-								"jsonrpc":"2.0",
-								"method":"job",
-								"params":job
-							};
+				if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
+					request.result.job.algo = workerSettings[user].activeCoin.algo;
+					if(firstConn && !request.result.extensions) request.result.extensions = [];
+					if(request.result.extensions && Array.isArray(request.result.extensions) && !request.result.extensions.includes("algo")) request.result.extensions.push("algo"); 
+				}
+
+				//modernize algo negotiation during pass through
+				//may disable and replace pass through if we encounter further problems
+				if(request.result.job.algo && request.result.job.variant) {
+					if(request.result.job.variant != "-1" && request.result.job.algo.indexOf("/") == -1) request.result.job.algo = request.result.job.algo + "/" + request.result.job.variant;
+					delete (request.result.job.variant)
+				}
+
+				var mybuf = new  Buffer(request.result.job.target, "hex");
+				poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
+				logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
+				setWorker(request.result.id);
+				if(!firstConn)
+				{
+					logger.info('  new job from login reply ('+pass+')');
+					var job = request.result.job;
+					request = {
+									"jsonrpc":"2.0",
+									"method":"job",
+									"params":job
+								};
+				}
+				firstConn=false;
 			}
-			firstConn=false;
-		}
-		else if(request.result && request.result.status === 'OK')
-		{
-			logger.info('    share delivered to '+coin+' '+request.result.status+' ('+pass+')');
-		}
-		else if(request.method && request.method === 'job')
-		{
-			var mybuf = new  Buffer(request.params.target, "hex");
-			poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
-		
-			if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
-				request.params.algo = workerSettings[user].activeCoin.algo;
+			else if(request.result && request.result.status === 'OK')
+			{
+				logger.info('    share delivered to '+coin+' '+request.result.status+' ('+pass+')');
+			}
+			else if(request.method && request.method === 'job')
+			{
+				var mybuf = new  Buffer(request.params.target, "hex");
+				poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
+			
+				if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
+					request.params.algo = workerSettings[user].activeCoin.algo;
+				}
+
+				//modernize pass through - see notes above
+				if(request.params.algo && request.params.variant) {
+					if(request.params.variant != "-1" && request.params.algo.indexOf("/") == -1) request.params.algo = request.params.algo + "/" + request.params.variant;
+					delete (request.params.variant)
+				}
+
+				logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
+			}
+			else if(request.method) 
+			{
+				logger.info(request.method+' (?) from pool '+coin+' ('+pass+')');
+			}else{
+				logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 			}
 
-			//modernize pass through - see notes above
-			if(request.params.algo && request.params.variant) {
-				if(request.params.variant != "-1" && request.params.algo.indexOf("/") == -1) request.params.algo = request.params.algo + "/" + request.params.variant;
-				delete (request.params.variant)
-			}
-
-			logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
-		}
-		else if(request.method) 
-		{
-			logger.info(request.method+' (?) from pool '+coin+' ('+pass+')');
-		}else{
-			logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
+			localsocket.write(JSON.stringify(request)+"\n");
 		}
 
-		localsocket.write(JSON.stringify(request)+"\n");
 	});
 	
 	remotesocket.on('close', function(had_error,text) {
@@ -277,7 +282,6 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 			suppressErrors = true;
 			let responderIndex = workerResponders[user][pass].indexOf(callback);
 			if (responderIndex > -1) workerResponders[user][pass].splice(responderIndex, 1);
-			console.log(workerResponders[user][pass].length);
 			localsocket.destroy();
 		} else if(type === 'stop')
 		{

@@ -115,7 +115,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 
 		let messages = data.toString().split('\n');
 		let n = messages.length;
-		for(var i=0; i<n; i++) {
+		for(let i = 0; i<n; i++) {
 			if(messages[i].length == 0) continue;
 			let request = JSON.parse(messages[i]);
 			if(request.result && request.result.job)

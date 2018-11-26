@@ -11,10 +11,10 @@ const winston = require('winston');
 const BN = require('bignumber.js');
 //const pushbullet = require('pushbullet');
 const diff2 = BN('ffffffff', 16);
+const basediff = BN('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff', 16)
 const stripjson = require('strip-json-comments');
 const coinMethods = require('./coin.js');
 const pushNotify = require('./pushnotify.js');
-
 
 const server = http.createServer(app);
 const io = require('socket.io').listen(server);
@@ -82,7 +82,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 	workerSettings[user].activeCoin = workerSettings[user].coins.filter((c) => c.symbol === coin)[0];
 
 	logger.info('connect to %s %s ('+pass+')',pools[user][idx].host, pools[user][idx].port);
-	
+
 	var remotesocket = new net.Socket();
 	remotesocket.connect(pools[user][idx].port, pools[user][idx].host);
 
@@ -101,7 +101,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 		let passTemplate = pools[user][idx]["passwordtemplate"],
 			poolLogin = pools[user][idx].name;
 
-		if(diffRequest) poolLogin = poolLogin.replace(/(.+)([.+])(\d+)(([.+].*)|$)/, "$1$2"+diffRequest+"$4");
+		if(diffRequest && !workerSettings[user].joinShares) poolLogin = poolLogin.replace(/(.+)([.+])(\d+)(([.+].*)|$)/, "$1$2"+diffRequest+"$4");
 
 		logger.info('new login to '+coin+' ('+pass+')');
 		let request = {"id":1,"method":"login","params":{"login":poolLogin,"pass": (passTemplate) ? passTemplate.replace("{%1}", pass) : pass,"agent":"SRBMiner Cryptonight AMD GPU miner/1.6.8"}};
@@ -118,7 +118,15 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 		for(let i = 0; i<n; i++) {
 			if(messages[i].length == 0) continue;
 			let request = JSON.parse(messages[i]);
-			if(request.result && request.result.job)
+//login example:
+//{"id":1,"jsonrpc":"2.0","method":"login","params":{"login":"xmrigtest+1220","pass":"XMRrigCPUProxy","agent":"XMRig/2.8.3 (Windows NT 10.0; Win64; x64) libuv/1.23.1 msvc/2017","algo":["cn-heavy/tube","cn-heavy/0","cn-heavy/xhv","cn-heavy"]}}
+//login reply example:
+//{"id":1,"jsonrpc":"2.0","error":null,"result":{"id":"430753104632954","job":{"blob":"0505adf1d1df057478427f2adb891ea6d8412535ec2502e49c9031197414d86960f7aaad7e5c3500000000af16addd28720c65ec49fdc0f3d40acceea2f1154b687be47533269ab0e7458204","job_id":"345087652977453","target":"711b0d00"},"status":"OK"}}
+//job example:
+//{"jsonrpc":"2.0","method":"job","params":{"blob":"0505adf1d1df057478427f2adb891ea6d8412535ec2502e49c9031197414d86960f7aaad7e5c350000000013fd1d5d852d0fec979188e0f92be6ef8b18e784aeff1b051a667fa0f1e4fe3004","job_id":"580814752632563","target":"711b0d00"}}
+//reply to job example:
+//{"id":6,"jsonrpc":"2.0","error":null,"result":{"status":"OK"}}
+			if (request.result && request.result.job)
 			{
 				if (!request.result.job.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 					request.result.job.algo = workerSettings[user].activeCoin.algo;
@@ -133,9 +141,13 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 					delete (request.result.job.variant)
 				}
 
-				var mybuf = new  Buffer(request.result.job.target, "hex");
-				poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
+				poolDiff = HexToDiff(request.result.job.target)
 				logger.info('login reply from '+coin+' ('+pass+') (diff: '+poolDiff+')');
+
+				if(diffRequest) request.result.job.target = DiffToHex(diffRequest);
+
+				console.log(diffRequest);
+
 				setWorker(request.result.id);
 				if(!firstConn)
 				{
@@ -155,9 +167,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 			}
 			else if(request.method && request.method === 'job')
 			{
-				var mybuf = new  Buffer(request.params.target, "hex");
-				poolDiff = diff2.div(BN(mybuf.reverse().toString('hex'),16)).toFixed(0);
-			
+				poolDiff = HexToDiff(request.params.target);
+
 				if (!request.params.algo && workerSettings[user].algoList && workerSettings[user].activeCoin && workerSettings[user].activeCoin.algo) {
 					request.params.algo = workerSettings[user].activeCoin.algo;
 				}
@@ -168,6 +179,8 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 					delete (request.params.variant)
 				}
 
+				if(diffRequest) request.params.target = DiffToHex(diffRequest);
+
 				logger.info('New Job from pool '+coin+' ('+pass+') (diff: '+poolDiff+')');
 			}
 			else if(request.method) 
@@ -177,7 +190,15 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 				logger.info(data+' (else) from '+coin+' '+JSON.stringify(request)+' ('+pass+')');
 			}
 
+			//ToDo: Currently proxy passes anything it doesn't understand to the miner. However, in a proxyjoin mode, the proxy may need to understand all poolside errors and edge cases.
+			//Ideally, it would act like a sub-level pool with full pool functionality or an actual miner but it would be too unnecessarily heavy.
+			if(workerSettings[user].joinShares && ((request.result && request.result.job) || (request.method && request.method === 'job'))) {
+				for (let responder of Object.keys(workerResponders[user])) {
+					workerResponders[user][responder][0]('job', request);
+				}
+			} else {
 			localsocket.write(JSON.stringify(request)+"\n");
+			}
 		}
 
 	});
@@ -187,11 +208,12 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 		if(workerhashrates[user]) delete workerhashrates[user][pass];
 		//to do: the following doesn't take into account that multipler workers can connect to a "user"
 		workerSettings[user].connected = false;
+		workerSettings[user].poolCB = null;
 		if(had_error) logger.error(' --'+text);
 	});
 	remotesocket.on('error', function(text) {
 		logger.error("pool error "+coin+' ('+pass+')',text);
-		
+		workerSettings[user].poolCB = null;
 		//set pool dirty of happens multiple times
 		//send share reject
 		//switchEmitter.emit('switch',coin);
@@ -209,7 +231,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 			if(data.method && data.method === 'submit') 
 			{
 				shares+=poolDiff/1000;
-				
+
 				const now = ((new Date).getTime())/1000;
 				const rate = shares / (now-connectTime);
 
@@ -218,6 +240,20 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 				workerhashrates[user][pass]={time:now,hashrate:rate};
 
 				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
+
+								//let hashArray = request.params.result.toByteArray().reverse();
+				//let hashNum = bignum.fromBuffer(new Buffer(hashArray));
+				let hashNum = BN((new Buffer(data.params.result, 'hex')).reverse().toString('hex'),16);
+				let hashDiff = basediff.div(hashNum);
+			
+				//ToDo: Use actual target for this instead of calculated pooldif
+				if (hashDiff.gte(poolDiff)) {
+					console.log("Diff is fine: " + hashDiff.toString() + " / pool diff: " +poolDiff);
+				} else {
+					console.log("Diff is lower than expected: " + hashDiff.toString() + " / pool diff: " +poolDiff);
+					localsocket.write(JSON.stringify({"id":data.id, "jsonrpc":"2.0","error":null,"result":{"status":"OK"}})+"\n");
+					return;
+				}
 			}
 			remotesocket.write(JSON.stringify(data)+"\n");
 		}
@@ -246,12 +282,13 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 		connected = true;
 	};
 
+	//MayDo: This may cause the algoList and perf to be overriden as new miners join to the same user. Handling all miners separately is the ideal solution but they have to be mining the same algo anyway
 	workerSettings[user].algoList = algoList;
 	workerSettings[user].algoPerf = algoPerf;
 
 	ProcessAlgoList(user);
 
-	var poolCB;
+	var poolCB = workerSettings[user].joinShares && workerSettings[user].poolCB || null;
 
 	var switchCB = function(newcoin,newuser,auto,firstTime = false){
 		if (user!==newuser) return;
@@ -262,7 +299,8 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 		workerSettings[user].connected = false;
 		
 		if (poolCB) poolCB('stop');
-		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass,diffRequest);
+		poolCB = poolCB || attachPool(localsocket,newcoin,firstTime,idCB,user,pass,diffRequest);
+		workerSettings[user].poolCB = workerSettings[user].joinShares && poolCB;
 
 		if(!firstTime && workerSettings[user].UIset.usePushMessaging)
 			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
@@ -274,7 +312,10 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 
 	var callback = function(type,request){
 	
-		if(type === 'kill')
+		if(type === 'job')
+		{
+			localsocket.write(JSON.stringify(request)+"\n");
+		} else if(type === 'kill')
 		{
 			poolCB('stop');
 			logger.info('kill local socket and disconnect from pool ('+pass+')');
@@ -297,19 +338,10 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 		{
 			request.params.id=myWorkerId;
 			logger.info('  Got share from worker ('+pass+')');
-			
-			//var mybuf = new  Buffer(request.params.result, "hex");
-
-
-			//logger.warn(mybuf);
-			//var hashArray = mybuf;
-			//var hashNum = bignum.fromBuffer(hashArray.reverse());
-			//var hashDiff = diff1.div(hashNum);
-			//logger.warn(hashDiff);
-
 
 			if(connected) poolCB('push',request);
 		}else{
+			//ToDo: This may need to be supressed in sharejoin mode, maybe replace with messaging that mimics an actual miner.
 			logger.info(request.method+' from worker '+JSON.stringify(request)+' ('+pass+')');
 			if(connected) poolCB('push',request);
 		}
@@ -544,7 +576,9 @@ function InitializeCoins() {
 			activeCoin: null,
 			algoList: existingAlgoList,
 			algoPerf: existingAlgoPerf,
-			UIset: {autoCoinSwitch: false}
+			UIset: {autoCoinSwitch: false},
+			//Dev: Following will be set in config, currently for testing
+			joinShares: true
 		};
 
 		// This is separately handled as a missing key will hide the setting in UI, by design
@@ -610,4 +644,16 @@ function ProcessAlgoList(username) {
 	if(algoPerf = workerSettings[username].algoPerf) {
 		for (let algo of Object.keys(algoPerf)) workerSettings[username].coins.filter((c) => c.algo == algo).map((c) => c.hashrate = c.hashrate || algoPerf[algo] || 1);
 	}
+}
+
+function DiffToHex(difficulty) {
+	let rawhex = (diff2.div(BN(difficulty)));
+	let diffraw = Math.round(rawhex).toString(16);
+	var paddeddiff = "0".repeat(Math.max(8 - diffraw.length,0)) + diffraw;
+	return BN((new Buffer(paddeddiff, "hex")).reverse().toString('hex'),16).toString(16);
+	}
+
+function HexToDiff(hex) {
+	var hexbuff = new Buffer(hex, "hex");
+	return diff2.div(BN(hexbuff.reverse().toString('hex'),16)).toFixed(0);
 }

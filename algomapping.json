@@ -19,8 +19,19 @@
     "cryptonight/b2n"       : "cn/b2n",
     "cryptonight/ita"       : "cn-heavy/xhv",
     "cn/ita"                : "cn-heavy/xhv",
+    "ctyptonight/b2n"       : "cn/b2n",
     "cryptonight/mkt"       : "cn/mkt",
     "cryptonight/mox"       : "cn/mox",
+    "cryptonight/dark"      : "cn/dark",
+    "cryptonight/fest"      : "cn/fest",
+    "cryptonight/xwp"       : "cn/xwp",
+    "cryptonight/upx"       : "cn/upx",
+    "cryptonight/xtlv9"     : "cn/xtlv9",
+    "cryptonight/web"       : "cn/web",
+    "crpytonight-pico/trtl" : "cn-pic/trtl",
+    "cryptonight/hosp"      : "cn/hosp",
+    "cryptonight/fast2"     : "cn/fast2",
+    "cryptonight/gpu"       : "cn/gpu",
     "normalv7"              : "cn/1",
     "normalv8"              : "cn/2",
     "heavy"                 : "cn-heavy",
@@ -35,5 +46,34 @@
     "italo"                 : "cn-heavy/xhv",
     "marketcash"            : "cn/mkt",
     "mox"                   : "cn/mox",
-    "normal"                : "cn"   
+    "normal"                : "cn",
+    "dark"                  : "cn/dark",
+    "festival"              : "cn/fest",
+    "swap"                  : "cn/xwp",
+    "upx"                   : "cn/upx",
+    "hycon"                 : "cn/hyc",
+    "stellitev8"            : "cn/xtlv9",
+    "webchain"              : "cn/web",
+    "turtle"                : "cn-pico/trtl",
+    "fast2"                 : "cn/gpu"
 }
+
+
+algo_mappings_short[10] = "cn/b2n";//b2n
+algo_mappings_short[11] = "cn/xtl";//stellitev4
+algo_mappings_short[12] = "cn-heavy/xhv";//haven
+algo_mappings_short[13] = "cn/msr";//fast
+algo_mappings_short[14] = "cn/ita";//italo
+algo_mappings_short[15] = "cn/mox";//mox
+algo_mappings_short[16] = "cn/2";//normalv8 - variant 2
+algo_mappings_short[17] = "cn/dark";//dark
+algo_mappings_short[18] = "cn/fest";//festival
+algo_mappings_short[19] = "cn/xwp";//swap [freehaven]
+algo_mappings_short[20] = "cn/upx";//upx
+algo_mappings_short[21] = "cn/hyc";//hycon
+algo_mappings_short[22] = "cn/xtlv9";//stellitev8
+algo_mappings_short[23] = "cn/web";//webchain
+algo_mappings_short[24] = "cn-pico/trtl";//turtle
+algo_mappings_short[25] = "cn/hosp";//hospital
+algo_mappings_short[26] = "cn/fast2";//fast2
+algo_mappings_short[27] = "cn/gpu";//gpu

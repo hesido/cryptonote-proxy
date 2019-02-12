@@ -234,37 +234,7 @@ Coin: class {
             console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
             this.marketvalue = 0;
           }
-        },
-        maplechange: async() => {
-          let pricetypes = {
-            buy: "buy",
-            sell: "sell",
-            market: "last"
-          }
-          //https://maplechange.com/api/v2/tickers/ltcbtc
-          //{"at":1539287463,"ticker":{"buy":"0.0085","sell":"0.0089","low":"0.0085","high":"0.0105","last":"0.0085","vol":"18.51983849","volbtc":"0.16545987120355","change":"-0.186602871","name":"BTC/LTC"}}
-
-          if (!this.ticker || !this.ticker.marketname) return false;
-          try {
-            this.ticker.hasError = false;
-    
-            let response = await axios.get(urljoin("https://maplechange.com/api/v2/tickers/", this.ticker.marketname)).catch((error) => {throw new Error(error);});
-            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://maplechange.com/api/v2/tickers/", this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
-
-            if(response.data.Error || (btcconvertresponse && btcconvertresponse.data.Error)) {throw new Error("API response error")};
-
-            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data.ticker[pricetypes.buy] || 1;
-            this.ticker.updatetime = ((new Date).getTime())/1000;
-    
-            return this.marketvalue = response.data.ticker[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
-          }
-          catch(error) {
-            this.ticker.hasError = true;
-            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
-            this.marketvalue = 0;
-          }
         }
-
         
       }
   

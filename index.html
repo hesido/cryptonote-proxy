@@ -207,7 +207,7 @@
 					var combined=0;
 					var referencetime = ((new Date()) / 1000) - localtimeskew;
 					if(workerList) {
-						var keys = Object.keys(workerList);
+						var keys = Object.keys(workerList).sort();
 						for(var worker of keys){
 							var date = (referencetime - workerList[worker].time).toFixed(0) + " seconds ago";
 							$('#workers').append($('<span>'+worker+' : '+date+' : '+workerList[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));

@@ -28,7 +28,7 @@
     "cryptonight/upx"       : "cn/upx",
     "cryptonight/xtlv9"     : "cn/xtlv9",
     "cryptonight/web"       : "cn/web",
-    "crpytonight-pico/trtl" : "cn-pic/trtl",
+    "crpytonight-pico/trtl" : "cn-pico/trtl",
     "cryptonight/hosp"      : "cn/hosp",
     "cryptonight/fast2"     : "cn/fast2",
     "cryptonight/gpu"       : "cn/gpu",

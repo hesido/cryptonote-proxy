@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.3.4
+# CryptoNote Switching Relay Proxy v4.3.5
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,9 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.3.5
+* Added new mappings for Monero CN/R
+* Added new pool api (BombApi)
 ### Changes in 4.3.4
 * Added new mappings for new algos for those using algo switching.
 ### Changes in 4.3.3

@@ -156,6 +156,29 @@ Coin: class {
           }
         },
 
+        bombapi: async () => {
+          try {
+            this.network.hasError = "";
+            let response = await axios.get(this.api).catch(() => {throw new Error("URL failed to load")});
+            if(response.data.error) {throw new Error("API response error")};
+    
+            if(!(this.network.difficulty = response.data.netStats && response.data.netStats.difficulty))  {throw new Error("Wrong api type")};
+            this.coinunit = response.data.sigDivisor || this.coinunit;
+           
+            this.network.reward = response.data.lastBlockReward / this.coinunit;
+            this.network.blockheight = response.data.netStats.height;
+
+            this.network.lastblockdatetime = response.data.stats.lastBlockFoundTime;
+            this.network.coindifficultytarget = response.data.coinDiffTarget;
+            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
+            this.network.updatetime = ((new Date).getTime())/1000;
+          }
+          catch(error) {
+            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
+            this.network.hasError = error;
+          }
+        },
+
         cryptonotenodejs: async () => {
           try {
             this.network.hasError = "";
@@ -164,7 +187,7 @@ Coin: class {
     
             if(!(this.network.difficulty = response.data.network.difficulty))  {throw new Error("Wrong api type")};
             this.coinunit = response.data.config.coinUnits || this.coinunit;
-            this.network.reward = response.data.lastblock.reward / this.coinunit;
+            this.network.reward = (response.data.pool.averageReward || response.data.lastblock.reward) / this.coinunit;
             this.network.blockheight = response.data.network.height;
 
             this.network.lastblockdatetime = response.data.pool.lastBlockFound / 1000;

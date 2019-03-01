@@ -28,10 +28,11 @@
     "cryptonight/upx"       : "cn/upx",
     "cryptonight/xtlv9"     : "cn/xtlv9",
     "cryptonight/web"       : "cn/web",
-    "crpytonight-pico/trtl" : "cn-pic/trtl",
+    "crpytonight-pico/trtl" : "cn-pico/trtl",
     "cryptonight/hosp"      : "cn/hosp",
     "cryptonight/fast2"     : "cn/fast2",
     "cryptonight/gpu"       : "cn/gpu",
+    "cryptonight/r"         : "cn/r",
     "normalv7"              : "cn/1",
     "normalv8"              : "cn/2",
     "heavy"                 : "cn-heavy",
@@ -56,5 +57,7 @@
     "webchain"              : "cn/web",
     "turtle"                : "cn-pico/trtl",
     "fast2"                 : "cn/fast2",
-    "gpu"                   : "cn/gpu"
+    "gpu"                   : "cn/gpu",
+    "normalv4"              : "cn/r",
+    "cryptonight_r"         : "cn/r"
 }

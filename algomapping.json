@@ -33,6 +33,8 @@
     "cryptonight/fast2"     : "cn/fast2",
     "cryptonight/gpu"       : "cn/gpu",
     "cryptonight/r"         : "cn/r",
+	"cryptonight/rwz"		: "cn/rwz",
+	"cryptonight/wow"		: "cn/wow",
     "normalv7"              : "cn/1",
     "normalv8"              : "cn/2",
     "heavy"                 : "cn-heavy",
@@ -59,5 +61,6 @@
     "fast2"                 : "cn/fast2",
     "gpu"                   : "cn/gpu",
     "normalv4"              : "cn/r",
-    "cryptonight_r"         : "cn/r"
+	"graft"					: "cn/rwz",
+	"wownero"				: "cn/wow"
 }

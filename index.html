@@ -133,7 +133,9 @@
 									'<dt>Pool</dt><dd>' + (coin.url ? ('<a target="_blank" class="pool" href="' + coin.url.replace(/\/$/, "") + '/?wallet=' + coin.login + '">Stats</a>') : coin.login) + '</dd>' +
 									'<dt>Difficulty</dt><dd class="difficulty"></dd>' +
 									'<dt>Algo</dt><dd class="algoname"></dd>' +
+									'<dt>Pool Api Type</dt><dd class="poolapitype"></dd>' +
 									'<dt>Expected Hashrate</dt><dd class="expectedhash"></dd>' +
+
 									'</div></div></td>' +
 								'</tr>'));
 							// if (coin.active)
@@ -246,6 +248,7 @@
 						row.find( ".marketvalue" ).text((coin.marketvalue) ? (coin.marketvalue < 0.00000001) ? LimitFractionalDigits(coin.marketvalue * 100000000, 2) : Math.round(coin.marketvalue * 100000000) : "N/A");
 						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate) : "N/A");
 						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
+						row.find( ".poolapitype"    ).text((coin.network.apiType) ? coin.network.apiType : "Not defined");
 						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate) : "Not set");
 						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate) : "N/A");
 					}

@@ -568,7 +568,7 @@ function InitializeCoins() {
 					converttobtc: mergecoin.ticker.converttobtc,
 					pricetype: mergecoin.ticker.pricetype || "sell",
 					price: mergecoin.ticker.price,
-				}, (topcoin) ? false : mergecoin.isdefault, mergecoin.hashrate || 0);
+				}, (topcoin) ? false : mergecoin.isdefault, (topcoin && topcoin.hashrate) || mergecoin.hashrate || 0);
 
 				if (!topcoin) { topcoin = coin = merged; } else { coin.mergewith = merged; coin = merged} 
 

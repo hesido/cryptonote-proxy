@@ -6,7 +6,7 @@ const assumestaleafterxseconds = 8;
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, isdefault: boolean, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {symbol: string, isdefault: boolean, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday: number, mergewith:Coin, mergedreward: number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
  * @typedef { {priceapi: string, pricetype: string, marketname: string, converttobtc: string, price: number, hasError: boolean, updatetime: number} } Ticker
  */
@@ -23,11 +23,13 @@ getPreferredCoin : async function(coins, activeCoin = null, algoswitchmultiplier
   let activeAlgo = activeCoin && activeCoin.algo;
   algoswitchmultiplier = (activeAlgo && algoswitchmultiplier) || 1;
 
-  for(let coin of coins.filter((c)=> !c.network.updatetime || (now - c.network.updatetime) > assumestaleafterxseconds)) {
-    promisechain.push(coin.FetchNetworkDetails());
-  }
-  for(let coin of coins.filter((c)=> !c.ticker.updatetime || (now - c.ticker.updatetime) > assumestaleafterxseconds)) {
-    promisechain.push(coin.FetchMarketValue());
+  for(let mergedcoin of coins) {
+    let coin = mergedcoin;
+    while(coin) {
+      if(!coin.network.updatetime || (now - coin.network.updatetime) > assumestaleafterxseconds) promisechain.push(coin.FetchNetworkDetails());
+      if(!coin.ticker.updatetime || (now - coin.ticker.updatetime) > assumestaleafterxseconds) promisechain.push(coin.FetchMarketValue());
+      coin = coin.mergewith;
+    }
   }
   
   /**
@@ -35,11 +37,11 @@ getPreferredCoin : async function(coins, activeCoin = null, algoswitchmultiplier
    */
   let maxRewardCoin = await Promise.all(promisechain).then(()=> {
     let targetCoin;
-    coins.filter((c) => !c.ticker.hasError && !c.network.hasError).map((c) => {
+    coins.map((c) => {
       targetCoin = targetCoin || c;
       let targetCoinHandicap = (targetCoin.algo == activeAlgo) && 1 || algoswitchmultiplier;
       let testedCoinHandicap = (c.algo == activeAlgo) && 1 || algoswitchmultiplier;
-      targetCoin = ((c.rewardperday * c.marketvalue * testedCoinHandicap * ((c.hashrate || 1) / (targetCoin.hashrate || 1))) > (targetCoin.rewardperday * targetCoin.marketvalue * targetCoinHandicap)) ? c : targetCoin;
+      targetCoin = ((c.mergedreward * testedCoinHandicap * ((c.hashrate || 1) / (targetCoin.hashrate || 1))) > (targetCoin.mergedreward * targetCoinHandicap)) ? c : targetCoin;
     });
     return targetCoin;
   });
@@ -58,8 +60,9 @@ Coin: class {
  * @param {Ticker} [ticker]
  * @param {number} hashrate
  * @param {boolean} isdefault
+ * @param {Coin} mergewith
  */
-    constructor(symbol, name, algo, walletaddress, url, api, ticker, isdefault, hashrate) {
+    constructor(symbol, name, algo, walletaddress, url, api, ticker, isdefault, hashrate, mergewith) {
       this.symbol = symbol;
       this.name = name || symbol;
       this.login = walletaddress;
@@ -76,6 +79,7 @@ Coin: class {
       this.coinunit = 1000000000;
       this.marketvalue = 0;
       this.rewardperday = 0;
+      this.mergewith = mergewith;
     
       this.networkAPIS = {
         genericCryptonote: async () => {
@@ -310,6 +314,21 @@ Coin: class {
   
       this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})
       this.FetchMarketValue = (this.ticker && !this.ticker.price && this.priceAPIS[this.ticker.priceapi]) || (async () => (this.marketvalue = this.ticker.price) || false);
+    }
+
+    get mergedreward() {
+
+      let valuereward = 0;
+      if (!this.mergewith) { valuereward = (this.rewardperday || 0) * (this.marketvalue || 0); }
+      else  {
+        let coin = this;
+        while (coin) {
+          valuereward += (coin.marketvalue && coin.rewardperday) ? coin.rewardperday * coin.marketvalue * (coin.hashrate || 1) : 0;
+          coin = coin.mergewith;
+        }
+      }
+
+      return valuereward;
     }
 
     async getApiType() {

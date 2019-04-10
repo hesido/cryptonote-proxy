@@ -103,6 +103,13 @@
 				socket = io();
 
 				socket.on('uiupdate', (update) => {
+					if (update.runtimesettings) {
+						let runtimesettings = update.runtimesettings;
+						$('#userselector').empty();
+						runtimesettings.userList.map((user) => $("<option />", { text: user, value: user }).appendTo("#userselector"));
+						$('#userselector').val($('#user').val());
+					}
+					if (update.user && update.user == user) {
 					if (update.coins) {
 						let coins = update.coins;
 						$('#coins').empty();
@@ -120,10 +127,18 @@
 							'</thead>'
 							));
 
-						for (var coin of coins) {
-							$('#coins').append($(
+						for (var coinmerged of coins) {
+							let coin = coinmerged;
+							let tbody = document.createElement('tbody');
+							if (coinmerged.mergewith) {
+								$(tbody).addClass('merged');
+								// $(tbody).append('<th scope="colgroup" rowspan="4">Stationary</th>')
+							}
+							$('#coins').append(tbody);
+							while (coin) {
+								$(tbody).append($(
 								'<tr class="coin" id="row_' + coin.symbol + '">' +
-								'<td class="swit" id="switch_' + (coin.symbol) + '">' + (coin.symbol) + '</td>' +
+								'<th class="swit" scope="row" id="switch_' + (coin.symbol) + '" data-proxyswitch="'+ coinmerged.symbol +'">' + (coin.symbol) + '</td>' +
 								'<td class="hashrate"></td>' +
 								'<td class="netblock"></td>' +
 								'<td class="marketvalue"></td>' +
@@ -143,16 +158,17 @@
 							$('#switch_' + coin.symbol).click(function () {
 								user = $('#user').val();
 								$(this).addClass('activating');
-								socket.emit('switch', user, this.id.substr(7));
+								socket.emit('switch', user, $(this).data('proxyswitch'));
 							});
+							coin = coin.mergewith;
+							}
+
+							if (coinmerged.mergewith) $(tbody).append($(
+								'<tr class="coin merged" id="row_' + coinmerged.symbol + '__merged"><th scope="row" colspan=5>Merged Total</th>'+
+								'<td class="mergedtotal"></td><td></td></tr>'));
 						}
 					};
-					if (update.runtimesettings) {
-						let runtimesettings = update.runtimesettings;
-						$('#userselector').empty();
-						runtimesettings.userList.map((user) => $("<option />", { text: user, value: user }).appendTo("#userselector"));
-						$('#userselector').val($('#user').val());
-					}
+
 					if (update.connectionstatus) {
 						$('span#minerconnection').text(update.connectionstatus);
 					}
@@ -183,6 +199,7 @@
 						if(updateTimeout) window.clearTimeout(updateTimeout);
 						updateTimeout = (windowisfocused) ? window.setTimeout(()=>socket.emit('requestupdate', user), 4100) : null;
 					}
+				}
 
 				});
 
@@ -238,19 +255,28 @@
 
 					let activeCoin = coinList.filter((c) => c.symbol == activeCoinId)[0];
 
-					for (var coin of coinList) {
+					for (var coinmerged of coinList) {
+						let coin = coinmerged;
+						let mergedbtcearning = 0;
+						while (coin) {
 						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * (workerhashrate || 1) : (coin.hashrate || 1);
 						let seconds = (new Date().getTime() / 1000) - localtimeskew;
 						let row = $("#row_" + coin.symbol);
+						mergedbtcearning += (coin.marketvalue && coin.rewardperday) ? coin.rewardperday * coin.marketvalue * hashrate : 0;
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
 						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
 						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
 						row.find( ".marketvalue" ).text((coin.marketvalue) ? (coin.marketvalue < 0.00000001) ? LimitFractionalDigits(coin.marketvalue * 100000000, 2) : Math.round(coin.marketvalue * 100000000) : "N/A");
 						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate) : "N/A");
 						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
-						row.find( ".poolapitype"    ).text((coin.network.apiType) ? coin.network.apiType : "Not defined");
+						row.find( ".poolapitype"     ).text((coin.network.apiType) ? coin.network.apiType : "Not defined");
 						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate) : "Not set");
-						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.marketvalue) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate) : "N/A");
+						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate) : "N/A");
+						coin = coin.mergewith;
+						}
+						let row = $("#row_" + coinmerged.symbol + "__merged");
+						if (row)
+							row.find( '.mergedtotal' ).text((mergedbtcearning) ? LimitFractionalDigits(mergedbtcearning) : "N/A");
 					}
 					$('table#coins').css("opacity", "1.0");
 					
@@ -269,7 +295,7 @@
 		<link rel="icon" href="favicon.ico" type="image/x-icon">
 		<style type="text/css">
 
-			#uisettings{
+#uisettings{
 				clear:both;
 				text-align: left;
 			}
@@ -290,8 +316,16 @@
 				}
 			.coin {
 				text-align: left;
-				font-size: 50%;
 			}
+
+			tr.merged > td {
+				line-height: 1em;
+			}
+
+			tr.merged > th {
+				text-align: right;
+			}
+
 			.workers {
 				text-align: left;
 				font-size: 50%;
@@ -363,6 +397,24 @@
 				padding: 0.4em;
 				margin: 0px;
 				z-index: 1;
+			}
+
+			table#coins {
+				border-collapse: collapse;
+				font-size: 50%;
+			}
+
+			table#coins tbody {
+					border-collapse: separate;
+					border: 1px solid blue;
+					border-radius: 10px;
+				}
+
+			table#coins tbody.merged {
+				border-spacing: 16px;
+				border: 2px solid blue;
+				border-left: 1px solid blue;
+				border-right: 1px solid blue;
 			}
 
 			.dropdown-content dl {

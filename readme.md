@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.3.6
+# CryptoNote Switching Relay Proxy v4.4.0
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,9 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.3.6
+* Added merged mining earning display and profitability support
+* Added sanity check that prevents wrong values when switching between users in UI
 ### Changes in 4.3.6
 * Added new mappings for Graft cn/rwz and WowNero cn/wow.
 * Added new pool api (HashVault).

@@ -14,7 +14,7 @@
 	"httpuser":"",
 	"httppassword":"",
 	/* Default coin symbol, can be overriden per user using "isdefault: true" in user config */
-	"default":"nh",
+	"default":"itns",
 	/* tradeogre / cryptopia / maplechange is supported for market price api */
 	"tickerdefaultapi":"tradeogre",
     /* After switching, mine coin for at least this many minutes */
@@ -35,7 +35,7 @@
 				/* will be required when you want different algo coin switch */
 				"algo":"",
 				/* 'name' is the wallet address, can include pool enabled format for setting difficulty etc.*/
-				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
+				"name":"itnswalletaddress",
 				"host":"45.32.171.89",
 				"port":"9999",
 				"url":"http://dummypool.com",
@@ -50,7 +50,7 @@
 				"symbol":"solace",
 				/* isdefault allows you to set default coin for each user, overrides "default" setting in the root of config */
 				"isdefault":true,
-				"name":"solilklkdlkdlkldkldkldkldkldkldkdlkdlkdlkl",
+				"name":"solacewalletaddress",
 				"host":"78.47.92.206",
 				"port":"9999",
 				"url":"http://dummypool.com",
@@ -68,16 +68,32 @@
 					"converttobtc": "btc-ltc" 
 				}
 			},{
-				"symbol":"etn",
-				"name":"etndfglkdjfgldkjfgkldjfglkjfg",
-				"host":"pool.etn.spacepools.org",
-				"port":"7777",
-				"url":"http://dummypool.com",
-				"api":"http://a.x.y.z/api",
+				"symbol":"loki",
+				"algo":"cn-pico/turtle",
+				"name":"Loki_WALLET:TurtleCoin_WALLET+Diff",
+				"host":"pool.loki.hashvault.pro",
+				"port":"3333",
+				"url":"https://loki.hashvault.pro/en/",
+				"api":"https://loki.hashvault.pro/api/",
 				"ticker": {
-					/* Price allows you to set a custom price that you think is appropriate for the coin, instead of getting the value from an exchange api.
-					   This allows mining based on difficulty and also speculative mining for coins that do not yet have an exchange rate.*/
-					"price": 0.00000005
+					"marketname":"btc-loki"
+				},
+				/* "mergewith" allows you define the merged coin to see follow the performance of your merged mining in the UI
+				    and allows for proper profit switching. You define the coin exactly the same way, but you do not need to define "algo",
+					it will be considered the same as the parent coin */
+				"mergewith": {
+					"symbol":"turtle",
+					"name":"TurtleCoin_WALLET",
+					"host":"loki.miner.rocks",
+					"port":"3333",
+					"url":"https://loki.hashvault.pro/en/",
+					"api":"https://loki.hashvault.pro/api/",
+					"passwordtemplate": "w={%1}",
+					"ticker": {
+						"marketname":"btc-trtl"
+					},
+					/* You can actually merge as many coins as you want, by declaring another coin using "mergewith" inside the mergedcoin. */
+					"mergewith": false
 				}
 			},{
 				"symbol":"msr",
@@ -89,8 +105,8 @@
 				"ticker": {
 					/* priceapi lets you select the ticker api individually, use it if you want to use a ticker api
 					   other than the default ticker api (tradeogre).
-					   Possible values: tradeogre|cryptopia|maplechange */
-					"priceapi": "maplechange",
+					   Possible values: tradeogre|cryptopia */
+					"priceapi": "cryptopia",
 					/* The market name must be used similarly to the exchange. */
 					"marketname": "msrbtc",
 					/* pricetype allows you to use the type of price you'd like to be evaluated.
@@ -115,7 +131,12 @@
 				"host":"45.32.171.89",
 				"port":"9999",
 				"url":"http://dummypool.com",
-				"api":"http://a.x.y.z/api"
+				"api":"http://a.x.y.z/api",
+				"ticker": {
+					/* Price allows you to set a custom price that you think is appropriate for the coin, instead of getting the value from an exchange api.
+					   This allows mining based on difficulty and also speculative mining for coins that do not yet have an exchange rate.*/
+					"price": 0.00000050
+				}
 			},{
 				"symbol":"nh",
 				"name":"38efCkzYVUrojQAjuBAQHpudVpKKuaqxrZ.pr",

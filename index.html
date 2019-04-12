@@ -270,7 +270,7 @@
 						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate) : "N/A");
 						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
 						row.find( ".poolapitype"     ).text((coin.network.apiType) ? coin.network.apiType : "Not defined");
-						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate) : "Not set");
+						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate * 1000) : "Not set");
 						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate) : "N/A");
 						coin = coin.mergewith;
 						}

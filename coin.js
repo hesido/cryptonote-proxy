@@ -41,7 +41,7 @@ getPreferredCoin : async function(coins, activeCoin = null, algoswitchmultiplier
       targetCoin = targetCoin || c;
       let targetCoinHandicap = (targetCoin.algo == activeAlgo) && 1 || algoswitchmultiplier;
       let testedCoinHandicap = (c.algo == activeAlgo) && 1 || algoswitchmultiplier;
-      targetCoin = ((c.mergedreward * testedCoinHandicap * ((c.hashrate || 1) / (targetCoin.hashrate || 1))) > (targetCoin.mergedreward * targetCoinHandicap)) ? c : targetCoin;
+      targetCoin = ((c.mergedreward * testedCoinHandicap * (c.hashrate || 1)) > (targetCoin.mergedreward * targetCoinHandicap * targetCoin.hashrate || 1)) ? c : targetCoin;
     });
     return targetCoin;
   });
@@ -299,7 +299,7 @@ Coin: class {
       else  {
         let coin = this;
         while (coin) {
-          valuereward += (coin.marketvalue && coin.rewardperday) ? coin.rewardperday * coin.marketvalue * (coin.hashrate || 1) : 0;
+          valuereward += (coin.rewardperday || 0) * (coin.marketvalue || 0);
           coin = coin.mergewith;
         }
       }

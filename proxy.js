@@ -601,6 +601,7 @@ async function EvaluateCoinSwitch(user) {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user);
 		} else {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+			logger.info("Evaluated coins, " + workerSettings[user].activeCoin.symbol + "still optimal for mining.");
 		}
 	}
 }

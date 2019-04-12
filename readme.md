@@ -25,7 +25,7 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
-### Changes in 4.3.6
+### Changes in 4.4.0
 * Added merged mining earning display and profitability support
 * Added sanity check that prevents wrong values when switching between users in UI
 ### Changes in 4.3.6

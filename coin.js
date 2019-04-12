@@ -6,7 +6,7 @@ const assumestaleafterxseconds = 8;
 
 var CoinMethods = {
 /**
- * @typedef { {symbol: string, isdefault: boolean, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday:number} } Coin
+ * @typedef { {symbol: string, isdefault: boolean, name: string, algo: string, login: string, url: string, api: string, network: object, ticker: string, coinunit: number, marketvalue: number, rewardperday: number, mergewith:Coin, mergedreward: number} } Coin
  * @typedef { {hashrate: number, difficulty: number, blockreward: number, poolblockheight: number, blockheight: number, pooleffort: number, lastblockdatetime: Date, coindifficultytarget: number, hasError: boolean, apiType: string, updatetime: number } } CoinNetwork
  * @typedef { {priceapi: string, pricetype: string, marketname: string, converttobtc: string, price: number, hasError: boolean, updatetime: number} } Ticker
  */
@@ -23,11 +23,13 @@ getPreferredCoin : async function(coins, activeCoin = null, algoswitchmultiplier
   let activeAlgo = activeCoin && activeCoin.algo;
   algoswitchmultiplier = (activeAlgo && algoswitchmultiplier) || 1;
 
-  for(let coin of coins.filter((c)=> !c.network.updatetime || (now - c.network.updatetime) > assumestaleafterxseconds)) {
-    promisechain.push(coin.FetchNetworkDetails());
-  }
-  for(let coin of coins.filter((c)=> !c.ticker.updatetime || (now - c.ticker.updatetime) > assumestaleafterxseconds)) {
-    promisechain.push(coin.FetchMarketValue());
+  for(let mergedcoin of coins) {
+    let coin = mergedcoin;
+    while(coin) {
+      if(!coin.network.updatetime || (now - coin.network.updatetime) > assumestaleafterxseconds) promisechain.push(coin.FetchNetworkDetails());
+      if(!coin.ticker.updatetime || (now - coin.ticker.updatetime) > assumestaleafterxseconds) promisechain.push(coin.FetchMarketValue());
+      coin = coin.mergewith;
+    }
   }
   
   /**
@@ -35,11 +37,11 @@ getPreferredCoin : async function(coins, activeCoin = null, algoswitchmultiplier
    */
   let maxRewardCoin = await Promise.all(promisechain).then(()=> {
     let targetCoin;
-    coins.filter((c) => !c.ticker.hasError && !c.network.hasError).map((c) => {
+    coins.map((c) => {
       targetCoin = targetCoin || c;
       let targetCoinHandicap = (targetCoin.algo == activeAlgo) && 1 || algoswitchmultiplier;
       let testedCoinHandicap = (c.algo == activeAlgo) && 1 || algoswitchmultiplier;
-      targetCoin = ((c.rewardperday * c.marketvalue * testedCoinHandicap * ((c.hashrate || 1) / (targetCoin.hashrate || 1))) > (targetCoin.rewardperday * targetCoin.marketvalue * targetCoinHandicap)) ? c : targetCoin;
+      targetCoin = ((c.mergedreward * testedCoinHandicap * (c.hashrate || 1)) > (targetCoin.mergedreward * targetCoinHandicap * targetCoin.hashrate || 1)) ? c : targetCoin;
     });
     return targetCoin;
   });
@@ -58,8 +60,9 @@ Coin: class {
  * @param {Ticker} [ticker]
  * @param {number} hashrate
  * @param {boolean} isdefault
+ * @param {Coin} mergewith
  */
-    constructor(symbol, name, algo, walletaddress, url, api, ticker, isdefault, hashrate) {
+    constructor(symbol, name, algo, walletaddress, url, api, ticker, isdefault, hashrate, mergewith) {
       this.symbol = symbol;
       this.name = name || symbol;
       this.login = walletaddress;
@@ -76,6 +79,7 @@ Coin: class {
       this.coinunit = 1000000000;
       this.marketvalue = 0;
       this.rewardperday = 0;
+      this.mergewith = mergewith;
     
       this.networkAPIS = {
         genericCryptonote: async () => {
@@ -129,21 +133,20 @@ Coin: class {
           }
         },
 
-        cryptonotehashvault: async () => {
+        cryptonoteHashvault: async () => {
           try {
             this.network.hasError = "";
             let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});
             if(response.data.error) {throw new Error("API response error")};
     
-            if(!response.data.network_statistics || !(this.network.difficulty = response.data.network_statistics.difficulty)) {throw new Error("Wrong api type")};
+            if(!response.data.network_statistics || !response.data.pool_statistics || !response.data.pool_statistics.lastPoolBlock || !(this.network.difficulty = response.data.network_statistics.difficulty)) {throw new Error("Wrong api type")};
             this.network.blockheight = response.data.network_statistics.height;
             this.coinunit = response.data.config.sigDivisor || this.coinunit;
            
-            this.network.reward = response.data.network_statistics.value / this.coinunit;
+            this.network.reward = (response.data.pool_statistics.lastPoolBlock.value || response.data.network_statistics.value) / this.coinunit;
 
             this.network.lastblockdatetime = response.data.pool_statistics.lastBlockFoundTime;
-            //Note: coin difficulty target is not supported by this api. Pool effort cannot be calculated independently in future if this is not set.
-            this.network.coindifficultytarget = response.data.config.coinDiffTarget;
+            if(!(this.network.coindifficultytarget = response.data.config.coinDiffTarget)) {throw new Error("Wrong api type")};
             this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
             this.network.updatetime = ((new Date).getTime())/1000;
           }
@@ -203,30 +206,7 @@ Coin: class {
           }
         },
 
-        hashvault: async () => {
-          try {
-            this.network.hasError = "";
-            let response = await axios.get(this.api).catch(() => {throw new Error("URL failed to load")});
-            if(response.data.error) {throw new Error("API response error")};
-    
-            if(!(this.network.difficulty = response.data.netStats && response.data.netStats.difficulty))  {throw new Error("Wrong api type")};
-            this.coinunit = response.data.sigDivisor || this.coinunit;
-           
-            this.network.reward = response.data.lastBlockReward / this.coinunit;
-            this.network.blockheight = response.data.netStats.height;
-
-            this.network.lastblockdatetime = response.data.stats.lastBlockFoundTime;
-            this.network.coindifficultytarget = response.data.coinDiffTarget;
-            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
-            this.network.updatetime = ((new Date).getTime())/1000;
-          }
-          catch(error) {
-            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
-            this.network.hasError = error;
-          }
-        },
-
-        cryptonotenodejs: async () => {
+        cryptonoteNodejs: async () => {
           try {
             this.network.hasError = "";
             let response = await axios.get(urljoin(this.api, "stats")).catch(() => {throw new Error("URL failed to load")});
@@ -310,6 +290,21 @@ Coin: class {
   
       this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})
       this.FetchMarketValue = (this.ticker && !this.ticker.price && this.priceAPIS[this.ticker.priceapi]) || (async () => (this.marketvalue = this.ticker.price) || false);
+    }
+
+    get mergedreward() {
+
+      let valuereward = 0;
+      if (!this.mergewith) { valuereward = (this.rewardperday || 0) * (this.marketvalue || 0); }
+      else  {
+        let coin = this;
+        while (coin) {
+          valuereward += (coin.rewardperday || 0) * (coin.marketvalue || 0);
+          coin = coin.mergewith;
+        }
+      }
+
+      return valuereward;
     }
 
     async getApiType() {

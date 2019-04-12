@@ -438,6 +438,7 @@ io.on('connection', function(socket){
 
 		if(workerSettings[user]) {
 			socket.emit('uiupdate', {
+				user: user,
 				coins: workerSettings[user].coins,
 				active: workerSettings[user].activeCoin && workerSettings[user].activeCoin.symbol,
 				workers: {
@@ -456,9 +457,13 @@ io.on('connection', function(socket){
 
 			var promiseChain = [];
 			for (let coin of workerSettings[user].coins) {
-				promiseChain.push(coin.FetchMarketValue(), coin.FetchNetworkDetails());
+				let mergedcoin = coin;
+				while (mergedcoin) {
+					promiseChain.push(mergedcoin.FetchMarketValue(), mergedcoin.FetchNetworkDetails());
+					mergedcoin = mergedcoin.mergewith;
+				}
 			}
-			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {coinsupdate: workerSettings[user].coins})).catch((error) => (console.log(error)));
+			Promise.all(promiseChain).then(() => socket.emit('uiupdate', {user: user, coinsupdate: workerSettings[user].coins})).catch((error) => (console.log(error)));
 			
 			//timeoutObj = setTimeout(updateUI, 4000, user);
 		} else {
@@ -477,6 +482,7 @@ io.on('connection', function(socket){
 		let activeCoin = workerSettings[user].activeCoin || workerSettings[user].coins.filter((c) => c.isdefault)[0];
 	
 		socket.emit('uiupdate', {
+			user: user,
 			active: activeCoin && activeCoin.symbol || config.default,
 			connectionstatus: (workerSettings[user].connected) ? "Connected" : "Disconnected",
 			workers: {
@@ -553,14 +559,23 @@ function InitializeCoins() {
 		};
 
 		for (var poolid in pools[username]) {
-			let pool = pools[username][poolid];
-			workerSettings[username].coins.push(new coinMethods.Coin(pool.symbol, pool.coinname || pool.symbol, pool.algo || null, pool.name.split(/[.+]/)[0], pool.url, pool.api, pool.ticker && {
-				priceapi: pool.ticker.priceapi || "tradeogre",
-				marketname: pool.ticker.marketname,
-				converttobtc: pool.ticker.converttobtc,
-				pricetype: pool.ticker.pricetype || "sell",
-				price: pool.ticker.price,
-			}, pool.isdefault, pool.hashrate || 0));
+			let mergecoin = pools[username][poolid], merged, topcoin, coin;
+
+			while (mergecoin) {
+				merged = new coinMethods.Coin(mergecoin.symbol, mergecoin.coinname || mergecoin.symbol, (topcoin && topcoin.algo) || mergecoin.algo || null, mergecoin.name.split(/[.+]/)[0], mergecoin.url, mergecoin.api, mergecoin.ticker && {
+					priceapi: mergecoin.ticker.priceapi || "tradeogre",
+					marketname: mergecoin.ticker.marketname,
+					converttobtc: mergecoin.ticker.converttobtc,
+					pricetype: mergecoin.ticker.pricetype || "sell",
+					price: mergecoin.ticker.price,
+				}, (topcoin) ? false : mergecoin.isdefault, (topcoin && topcoin.hashrate) || mergecoin.hashrate || 0);
+
+				if (!topcoin) { topcoin = coin = merged; } else { coin.mergewith = merged; coin = merged} 
+
+				mergecoin = mergecoin.mergewith;
+			}
+
+			workerSettings[username].coins.push(topcoin);
 		}
 
 		workerSettings[username].activeCoin = activeCoinIDX && workerSettings[username].coins.filter(c => c.symbol == activeCoinIDX)[0] || null;
@@ -586,6 +601,7 @@ async function EvaluateCoinSwitch(user) {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user);
 		} else {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
+			logger.info("Evaluated coins, " + workerSettings[user].activeCoin.symbol + "still optimal for mining.");
 		}
 	}
 }

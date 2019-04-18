@@ -284,7 +284,34 @@ Coin: class {
             console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
             this.marketvalue = 0;
           }
-        }
+        },
+        stex:  async() => {
+          let pricetypes = {
+            buy: "ask",
+            sell: "bid",
+            market: "last"
+          }
+
+          if (!this.ticker || !this.ticker.marketname) return false;
+          try {
+            this.ticker.hasError = false;
+    
+            let response = await axios.get(urljoin("https://api3.stex.com/public/ticker/", this.ticker.marketname)).catch((error) => {throw new Error(error);});
+            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://api3.stex.com/public/ticker/", this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
+
+            if(response.data.Error || (btcconvertresponse && btcconvertresponse.data.Error)) {throw new Error("API response error")};
+
+            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data.data[pricetypes.buy] || 1;
+            this.ticker.updatetime = ((new Date).getTime())/1000;
+    
+            return this.marketvalue = response.data.data[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
+          }
+          catch(error) {
+            this.ticker.hasError = true;
+            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
+            this.marketvalue = 0;
+          }
+        },
         
       }
   

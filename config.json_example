@@ -83,6 +83,10 @@
 			}
 		],"userB":[
 			{
+				"AutoCoinSwitch": true,
+				"UsePushMessaging": false
+			},
+			{
 				"symbol":"itns",
 				"name":"izlkfjdflkjgdlfkgjdflkgjdlkfgj",
 				"host":"45.32.171.89",

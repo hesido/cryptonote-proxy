@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.4.0
+# CryptoNote Switching Relay Proxy v4.4.1
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,10 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.4.1
+* Added stex ticker api
+* Added notification for config errors during runtime
+* Added per-user setting support - This will allow you to set auto-switch on for certain users upon a reboot and auto-run.
 ### Changes in 4.4.0
 * Added merged mining earning display and profitability support
 * Added sanity check that prevents wrong values when switching between users in UI

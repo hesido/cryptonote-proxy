@@ -90,7 +90,7 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 	const connectTime = ((new Date).getTime())/1000;
 	var shares=0;
 
-	if(workerSettings[user].UIset.autoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
+	if(workerSettings[user].UIset.AutoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
 		if(workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
 		workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user)
 	}
@@ -264,7 +264,7 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 		if (poolCB) poolCB('stop');
 		poolCB = attachPool(localsocket,newcoin,firstTime,idCB,user,pass,diffRequest);
 
-		if(!firstTime && workerSettings[user].UIset.usePushMessaging)
+		if(!firstTime && workerSettings[user].UIset.UsePushMessaging)
 			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
 	};
 	let activeCoin = workerSettings[user].activeCoin || workerSettings[user].coins.filter((c) => c.isdefault)[0];
@@ -411,7 +411,12 @@ io.on('connection', function(socket){
 	//var timeoutObj;
 
 	socket.on('reload',function(user) {
-		EvaluateConfig();
+		try {
+			EvaluateConfig();
+		} catch (error) {
+			socket.emit('usererror', error);
+			return;
+		};
 		InitializeCoins();
 
 		pusher.apiToken = config.pushbulletApiToken;
@@ -515,9 +520,9 @@ io.on('connection', function(socket){
 		logger.info(user + " setting " + settingproperty + " changed to " + value);
 
 		switch(settingproperty) {
-			case "autoCoinSwitch":
+			case "AutoCoinSwitch":
 				if (workerSettings[user].coinswitchtimeout) clearTimeout(workerSettings[user].coinswitchtimeout);
-				if (workerSettings[user].UIset.autoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
+				if (workerSettings[user].UIset.AutoCoinSwitch && config.EvaluateSwitchEveryXMinutes > 0) {
 					workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user)
 				};
 				break;
@@ -528,8 +533,18 @@ io.on('connection', function(socket){
 
 
 function EvaluateConfig() {
+	try {
 	config = JSON.parse(stripjson(fs.readFileSync('config.json',"utf8")));
+	} catch(error) {
+		logger.error(error);
+		throw("Config file json parse error.");
+	}
+	try {
 	algomapping = JSON.parse(stripjson(fs.readFileSync('algomapping.json',"utf8")));
+	} catch(error) {
+		logger.error(error);
+		throw("Algomapping file json parse error.");
+	}
 	pools = config.pools;
 }
 
@@ -550,16 +565,23 @@ function InitializeCoins() {
 			activeCoin: null,
 			algoList: existingAlgoList,
 			algoPerf: existingAlgoPerf,
-			UIset: {autoCoinSwitch: false}
+			UIset: {AutoCoinSwitch: false}
 		};
 
 		// This is separately handled as a missing key will hide the setting in UI, by design
 		if (config.pushbulletApiToken) {
-			workerSettings[username].UIset.usePushMessaging = true;
+			workerSettings[username].UIset.UsePushMessaging = true;
 		};
 
-		for (var poolid in pools[username]) {
+		for (let poolid in pools[username]) {
 			let mergecoin = pools[username][poolid], merged, topcoin, coin;
+
+			if(!mergecoin.symbol) {
+				for (let setting in mergecoin) {
+					workerSettings[username].UIset[setting] = mergecoin[setting];
+				}
+				continue;
+			}
 
 			while (mergecoin) {
 				merged = new coinMethods.Coin(mergecoin.symbol, mergecoin.coinname || mergecoin.symbol, (topcoin && topcoin.algo) || mergecoin.algo || null, mergecoin.name.split(/[.+]/)[0], mergecoin.url, mergecoin.api, mergecoin.ticker && {
@@ -595,13 +617,13 @@ async function EvaluateCoinSwitch(user) {
 
 	let candidateCoin = await coinMethods.getPreferredCoin(workerSettings[user].coins.filter((c)=> c.minersupport), workerSettings[user].activeCoin, switchpenaltymultiplier);
 
-	if (workerSettings[user].UIset.autoCoinSwitch && candidateCoin) {
+	if (workerSettings[user].UIset.AutoCoinSwitch && candidateCoin) {
 		if (!workerSettings[user].activeCoin || candidateCoin.symbol !== workerSettings[user].activeCoin.symbol) {
 			switchEmitter.emit('switch', candidateCoin.symbol, user, true);
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, (config.MineCoinForAtLeastXMinutes || config.EvaluateSwitchEveryXMinutes) * 60 * 1000, user);
 		} else {
 			workerSettings[user].coinswitchtimeout = setTimeout(EvaluateCoinSwitch, config.EvaluateSwitchEveryXMinutes * 60 * 1000, user);
-			logger.info("Evaluated coins, " + workerSettings[user].activeCoin.symbol + "still optimal for mining.");
+			logger.info("Evaluated coins, " + workerSettings[user].activeCoin.symbol + " still optimal for mining.");
 		}
 	}
 }

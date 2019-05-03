@@ -105,9 +105,10 @@
 				"ticker": {
 					/* priceapi lets you select the ticker api individually, use it if you want to use a ticker api
 					   other than the default ticker api (tradeogre).
-					   Possible values: tradeogre|cryptopia|stex     */
+					   Possible values: tradeogre|cryptopia|stex|firstcryptobank     */
 					"priceapi": "cryptopia",
-					/* The market name must be used similarly to the exchange. For stex, this is the pair id, tradeogre and cryptopia use a readable market name */
+					/* The market name must be used similarly to the exchange.
+					   For stex, this is the pair id; tradeogre, cryptopia, firstcryptobank use a readable market name */
 					"marketname": "msrbtc",
 					/* pricetype allows you to use the type of price you'd like to be evaluated.
 					   Possible values: sell|market|buy , with "sell" being the default.

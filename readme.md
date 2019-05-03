@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.4.1
+# CryptoNote Switching Relay Proxy v4.4.2
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,8 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.4.2
+* Added FirstCryptoBank ticker api
 ### Changes in 4.4.1
 * Added stex ticker api
 * Added notification for config errors during runtime

@@ -2,7 +2,7 @@
     /* your pushbullet api token. You can get a free api token when you register, so you can track coin switches from any device */
 	"pushbulletApiToken":"",
 	/* do not send a second push message within this many minutes. 0 to disable limit.
-	"joinpushmessageswithinXminutes":60,
+	"joinpushmessageswithinXminutes":300,
     /* this is the port that your miners will connect to */
 	"workerport":2349,
     /* this is the port for web interface */

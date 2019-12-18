@@ -120,8 +120,8 @@
 							'<th>Nethash</th>' +
 							'<th>LastBlock</th>' +
 							'<th>Satoshi<br />Value</th>' +
-							'<th>Daily Mined<br />(<span class="workerhashrate">1</span> kH/s)</th>' +
-							'<th>Daily BTC<br />(<span class="workerhashrate">1</span> kH/s)</th>' +
+							'<th>Daily Mined<br />(<span class="workerhashrate">*</span>)</th>' +
+							'<th>Daily BTC<br />(<span class="workerhashrate">*</span>)</th>' +
 							'<th>More Info</th>' +
 							'</tr>' +
 							'</thead>'
@@ -229,14 +229,14 @@
 						var keys = Object.keys(workerList).sort();
 						for(var worker of keys){
 							var date = (referencetime - workerList[worker].time).toFixed(0) + " seconds ago";
-							$('#workers').append($('<span>'+worker+' : '+date+' : '+workerList[worker].hashrate.toFixed(2)+' kH/s<br/></span>'));
+							$('#workers').append($('<span>'+worker+' : '+date+' : '+getReadableHashRateString(workerList[worker].hashrate)+'<br/></span>'));
 							if (workerList[worker].time > (servertime-(60*5))) combined+=workerList[worker].hashrate;
 						}
 					}
 						
-						$('span.workerhashrate').text((workerhashrate || 1).toFixed(1));
+						$('span.workerhashrate').text(workerhashrate ? getReadableHashRateString(workerhashrate) + "/s" : "*");
 					
-						$('#workers').append($('<span>combined : '+combined.toFixed(2)+' kH/s<br/></span>'));
+						$('#workers').append($('<span>combined : '+getReadableHashRateString(combined)+'/s<br/></span>'));
 
 					if (coinList) {
 						for (var coin of coinList) {
@@ -259,19 +259,19 @@
 						let coin = coinmerged;
 						let mergedbtcearning = 0;
 						while (coin) {
-						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate) ? coin.hashrate / activeCoin.hashrate * (workerhashrate || 1) : (coin.hashrate || 1);
+						let hashrate = (activeCoin && activeCoin.hashrate && coin.hashrate && workerhashrate) ? coin.hashrate / activeCoin.hashrate * workerhashrate : (coin.hashrate || 1000);
 						let seconds = (new Date().getTime() / 1000) - localtimeskew;
 						let row = $("#row_" + coin.symbol);
-						mergedbtcearning += (coin.marketvalue && coin.rewardperday) ? coin.rewardperday * coin.marketvalue * hashrate : 0;
+						mergedbtcearning += (coin.marketvalue && coin.rewardperday) ? coin.rewardperday * coin.marketvalue * hashrate / 1000 : 0;
 						row.find( ".hashrate"    ).text((coin.network.coindifficultytarget) ? getReadableHashRateString(coin.network.difficulty / coin.network.coindifficultytarget) + '/sec' : "N/A");
 						row.find( ".netblock"    ).text((coin.network.lastblockdatetime) ? (seconds - coin.network.lastblockdatetime).toFixed(0)+'s' : "N/A" );
 						row.find( ".difficulty"  ).text(coin.network.difficulty || "N/A");
 						row.find( ".marketvalue" ).text((coin.marketvalue) ? (coin.marketvalue < 0.0000001) ? LimitFractionalDigits(coin.marketvalue * 100000000, 2) : (coin.marketvalue < 0.000001) ? LimitFractionalDigits(coin.marketvalue * 100000000, 1) : Math.round(coin.marketvalue * 100000000) : "N/A");
-						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate) : "N/A");
+						row.find( ".dailyearning").text((coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday  * hashrate / 1000) : "N/A");
 						row.find( ".algoname"    ).text((coin.algo) ? coin.algo : "Not defined");
 						row.find( ".poolapitype"     ).text((coin.network.apiType) ? coin.network.apiType : "Not defined");
-						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate * 1000) : "Not set");
-						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate) : "N/A");
+						row.find( ".expectedhash"    ).text((coin.hashrate) ? getReadableHashRateString(hashrate) : "Not set");
+						row.find( ".dailybtcearning" ).text((coin.marketvalue && coin.rewardperday) ? LimitFractionalDigits(coin.rewardperday * coin.marketvalue * hashrate / 1000) : "N/A");
 						coin = coin.mergewith;
 						}
 						let row = $("#row_" + coinmerged.symbol + "__merged");

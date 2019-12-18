@@ -311,33 +311,6 @@ Coin: class {
             console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
             this.marketvalue = 0;
           }
-        },
-        firstcryptobank:  async() => {
-          let pricetypes = {
-            buy: "ask",
-            sell: "bid",
-            market: "last"
-          }
-
-          if (!this.ticker || !this.ticker.marketname) return false;
-          try {
-            this.ticker.hasError = false;
-    
-            let response = await axios.get("http://api.fcbaccount.com:8880/api/v1/public/getticker?pair=" + this.ticker.marketname).catch((error) => {throw new Error(error);});
-            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get("http://api.fcbaccount.com:8880/api/v1/public/getticker?pair=" + this.ticker.converttobtc).catch((error) => {throw new Error(error);}) : null;
-
-            if(!response.data.status || (btcconvertresponse && !btcconvertresponse.data.status)) {throw new Error(`API response error: "${response.data.message || btcconvertresponse.data.message}"`)};
-
-            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data.result[pricetypes.buy] || 1;
-            this.ticker.updatetime = ((new Date).getTime())/1000;
-    
-            return this.marketvalue = response.data.result[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
-          }
-          catch(error) {
-            this.ticker.hasError = true;
-            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
-            this.marketvalue = 0;
-          }
         }
       }
   

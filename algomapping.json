@@ -61,6 +61,13 @@
     "fast2"                 : "cn/fast2",
     "gpu"                   : "cn/gpu",
     "normalv4"              : "cn/r",
-	"graft"					: "cn/rwz",
-	"wownero"				: "cn/wow"
+	"graft"                 : "cn/rwz",
+    "wownero"               : "cn/wow",
+    "randomx"               : "rx/0",
+    "randomx/wow"           : "rx/wow",
+    "randomx/loki"          : "rx/loki",
+    "randomx/arq"           : "rx/arq",
+    "arqma"                 : "rx/arq",
+    "chukwa"                : "argon2/chukwa",
+    "wrkz"                  : "argon2/wrkz"
 }

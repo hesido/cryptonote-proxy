@@ -215,9 +215,9 @@ function attachPool(localsocket,coin,firstConn,setWorker,user,pass,diffRequest) 
 
 				if(!workerhashrates[user]) workerhashrates[user]={};
 
-				workerhashrates[user][pass]={time:now,hashrate:rate};
+				workerhashrates[user][pass]={time:now,hashrate:rate * 1000};
 
-				logger.info('   HashRate:'+((rate).toFixed(2))+' kH/s');
+				logger.info('   HashRate:'+ rate +' H/s');
 			}
 			remotesocket.write(JSON.stringify(data)+"\n");
 		}
@@ -267,7 +267,7 @@ function createResponder(localsocket,user,pass,diffRequest,algoList,algoPerf){
 		if(!firstTime && workerSettings[user].UIset.UsePushMessaging)
 			pusher.pushnote(`${user} ${auto ? "auto" : ""} coin switch`, `Switched to ${newcoin}\n${(new Date()).toLocaleString()}`);
 	};
-	let activeCoin = workerSettings[user].activeCoin || workerSettings[user].coins.filter((c) => c.isdefault)[0];
+	let activeCoin = workerSettings[user].activeCoin || workerSettings[user].coins.find((c) => c.isdefault) || workerSettings[user].coins.find((c) => c.symbol === config.default) || workerSettings[user].coins.find((c) => c.symbol);
 	switchCB(activeCoin && activeCoin.symbol || config.default,user,false,true);
 
 	switchEmitter.on('switch',switchCB);
@@ -584,7 +584,7 @@ function InitializeCoins() {
 			}
 
 			while (mergecoin) {
-				merged = new coinMethods.Coin(mergecoin.symbol, mergecoin.coinname || mergecoin.symbol, (topcoin && topcoin.algo) || mergecoin.algo || null, mergecoin.name.split(/[.+]/)[0], mergecoin.url, mergecoin.api, mergecoin.ticker && {
+				merged = new coinMethods.Coin(mergecoin.symbol, mergecoin.coinname || mergecoin.symbol, (topcoin && topcoin.algo) || mergecoin.algo || null, (mergecoin.name || "WalletAddressN-A").split(/[.+]/)[0], mergecoin.url, mergecoin.api, mergecoin.ticker && {
 					priceapi: mergecoin.ticker.priceapi || "tradeogre",
 					marketname: mergecoin.ticker.marketname,
 					converttobtc: mergecoin.ticker.converttobtc,

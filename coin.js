@@ -311,8 +311,7 @@ Coin: class {
             console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
             this.marketvalue = 0;
           }
-        },
-        
+        }
       }
   
       this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})

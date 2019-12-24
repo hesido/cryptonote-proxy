@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.4.3
+# CryptoNote Switching Relay Proxy v4.4.4
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,11 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.4.4
+* Added Crex24 and Qtrade ticker apis
+* Added more mappings for RandomX variants
+* Added a digit for sub-satoshi value coins
+* Removed Cryptopia ticker api
 ### Changes in 4.4.3
 * Added RandomX and Argon2 algo mappings
 * Fixed connection errors when no coin was selected and no default coin was set on initial miner connection

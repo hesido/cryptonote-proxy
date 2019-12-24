@@ -64,15 +64,15 @@
 					"mergewith": false
 				}
 			},{
-				"symbol":"msr",
+				"symbol":"arms",
 				"name":"5q9dflkjdflgkdjfgdfgdfgdfgdfg",
 				"host":"masari.superpools.net",
 				"port":"8889",
 				"url":"http://dummypool.com",
 				"api":"http://a.x.y.z/api",
 				"ticker": {
-					"priceapi": "cryptopia",
-					"marketname": "msrbtc",
+					"priceapi": "qtrade",
+					"marketname": "ARMS_BTC",
 					"pricetype": "market"
 				}
 			},{

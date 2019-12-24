@@ -342,8 +342,8 @@ Coin: class {
 
         xcalibra: async() => {
           let pricetypes = {
-            buy: "buy",
-            sell: "sell",
+            buy: "sell",
+            sell: "buy",
             market: "close"
           }
           if (!this.ticker || !this.ticker.marketname) return false;

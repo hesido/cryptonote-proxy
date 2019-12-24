@@ -26,7 +26,7 @@ For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
 ### Changes in 4.4.4
-* Added Crex24 and Qtrade ticker apis
+* Added Crex24, Qtrade, Xcalibra ticker apis
 * Added more mappings for RandomX variants
 * Added a digit for sub-satoshi value coins
 * Removed Cryptopia ticker api

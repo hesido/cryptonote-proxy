@@ -46,7 +46,7 @@
     "alloy"                 : "cn/xao",
     "artocash"              : "cn/rto",
     "b2n"                   : "cn/b2n",
-    "italo"                 : "cn-heavy/xhv",
+    "italo"                 : "cn/r",
     "marketcash"            : "cn/mkt",
     "mox"                   : "cn/mox",
     "normal"                : "cn",
@@ -67,7 +67,13 @@
     "randomx/wow"           : "rx/wow",
     "randomx/loki"          : "rx/loki",
     "randomx/arq"           : "rx/arq",
+    "randomx/v"             : "rx/v",
+    "randomx/sfx"           : "rx/sfx",
+    "monero"                : "rx/0",
+    "loki"                  : "rx/loki",
     "arqma"                 : "rx/arq",
+    "monerov"               : "rx/v",
+    "safexcash"             : "rx/sfx",
     "chukwa"                : "argon2/chukwa",
     "wrkz"                  : "argon2/wrkz"
 }

@@ -156,6 +156,30 @@ Coin: class {
           }
         },
 
+        cryptonoteHashvaultV3: async () => {
+          try {
+            this.network.hasError = "";
+            let response = await axios.get(this.api).catch(() => {throw new Error("URL failed to load")});
+            if(response.data.error) {throw new Error("API response error")};
+    
+            if(!response.data.network_statistics || !response.data.pool_statistics || !response.data.pool_statistics.collective || !(this.network.difficulty = response.data.block_template.difficulty)) {throw new Error("Wrong api type")};
+            this.network.blockheight = response.data.network_statistics.height;
+            this.coinunit = response.data.config.sigDivisor || this.coinunit;
+           
+            this.network.reward = (response.data.pool_statistics.general.last10blocksAvgReward || response.data.network_statistics.value) / this.coinunit;
+
+            this.network.lastblockdatetime = response.data.pool_statistics.collective.lastFoundBlock.ts / 1000;
+            if(!(this.network.coindifficultytarget = response.data.config.coinDiffTarget)) {throw new Error("Wrong api type")};
+            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
+            this.network.updatetime = ((new Date).getTime())/1000;
+          }
+          catch(error) {
+            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
+            this.network.hasError = error;
+          }
+        },
+
+
         cryptonotepool: async () => {
           try {
             this.network.hasError = "";
@@ -258,33 +282,6 @@ Coin: class {
             this.marketvalue = 0;
           }
         },
-        cryptopia: async() => {
-          let pricetypes = {
-            buy: "BidPrice",
-            sell: "AskPrice",
-            market: "LastPrice"
-          }
-
-          if (!this.ticker || !this.ticker.marketname) return false;
-          try {
-            this.ticker.hasError = false;
-    
-            let response = await axios.get(urljoin("https://www.cryptopia.co.nz/api/GetMarket/", this.ticker.marketname)).catch((error) => {throw new Error(error);});
-            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://www.cryptopia.co.nz/api/GetMarket/", this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
-
-            if(response.data.Error || (btcconvertresponse && btcconvertresponse.data.Error)) {throw new Error("API response error")};
-
-            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data.Data[pricetypes.buy] || 1;
-            this.ticker.updatetime = ((new Date).getTime())/1000;
-    
-            return this.marketvalue = response.data.Data[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
-          }
-          catch(error) {
-            this.ticker.hasError = true;
-            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
-            this.marketvalue = 0;
-          }
-        },
         stex:  async() => {
           let pricetypes = {
             buy: "ask",
@@ -311,7 +308,88 @@ Coin: class {
             console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
             this.marketvalue = 0;
           }
-        }
+        },
+
+        crex24: async() => {
+          let pricetypes = {
+            buy: "ask",
+            sell: "bid",
+            market: "last"
+          }
+          if (!this.ticker || !this.ticker.marketname) return false;
+
+          try {
+            let response = await axios.get("https://api.crex24.com/v2/public/tickers?instrument=" + this.ticker.marketname.toUpperCase()).catch((error) => { throw new Error(error); });
+            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get("https://api.crex24.com/v2/public/tickers?instrument=" + this.ticker.converttobtc.toUpperCase()).catch((error) => { throw new Error(error); }) : null;
+
+            if (response.data.errorDescription || (btcconvertresponse && btcconvertresponse.data.errorDescription)) {throw new Error("API response error")};
+
+            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data[0][pricetypes.buy] || 1;
+            this.ticker.updatetime = ((new Date).getTime()) / 1000;
+
+            return this.marketvalue = response.data[0][pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
+          }
+          catch (error) {
+            this.ticker.hasError = true;
+            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
+            this.marketvalue = 0;
+          }
+        },
+        
+        qtrade:  async() => {
+          let pricetypes = {
+            buy: "ask",
+            sell: "bid",
+            market: "last"
+          }
+
+          if (!this.ticker || !this.ticker.marketname) return false;
+          try {
+            this.ticker.hasError = false;
+    
+            let response = await axios.get(urljoin("https://api.qtrade.io/v1/ticker/", this.ticker.marketname)).catch((error) => {throw new Error(error);});
+            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://api.qtrade.io/v1/ticker/", this.ticker.converttobtc)).catch((error) => {throw new Error(error);}) : null;
+
+            if(response.data.errors || (btcconvertresponse && btcconvertresponse.data.errors)) {throw new Error("API response error")};
+
+            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data.data[pricetypes.buy] || 1;
+            this.ticker.updatetime = ((new Date).getTime())/1000;
+    
+            return this.marketvalue = response.data.data[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
+          }
+          catch(error) {
+            this.ticker.hasError = true;
+            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
+            this.marketvalue = 0;
+          }
+        },
+
+        xcalibra: async() => {
+          let pricetypes = {
+            buy: "sell",
+            sell: "buy",
+            market: "close"
+          }
+          if (!this.ticker || !this.ticker.marketname) return false;
+         
+          try {
+           
+            let response = await axios.get(urljoin("https://app.xcalibra.com/api/public/v1/tickers/", this.ticker.marketname)).catch((error) => { throw new Error(error); });
+            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://app.xcalibra.com/api/public/v1/tickers/", this.ticker.converttobtc)).catch((error) => { throw new Error(error); }) : null;
+
+            //if (response.data.errorDescription || (btcconvertresponse && btcconvertresponse.data.errorDescription)) {throw new Error("API response error")};
+
+            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data[pricetypes.buy] || 1;
+            this.ticker.updatetime = ((new Date).getTime()) / 1000;
+
+            return this.marketvalue = response.data[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
+          }
+          catch (error) {
+            this.ticker.hasError = true;
+            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
+            this.marketvalue = 0;
+          }
+        },
       }
   
       this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})

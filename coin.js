@@ -156,6 +156,30 @@ Coin: class {
           }
         },
 
+        cryptonoteHashvaultV3: async () => {
+          try {
+            this.network.hasError = "";
+            let response = await axios.get(this.api).catch(() => {throw new Error("URL failed to load")});
+            if(response.data.error) {throw new Error("API response error")};
+    
+            if(!response.data.network_statistics || !response.data.pool_statistics || !response.data.pool_statistics.collective || !(this.network.difficulty = response.data.block_template.difficulty)) {throw new Error("Wrong api type")};
+            this.network.blockheight = response.data.network_statistics.height;
+            this.coinunit = response.data.config.sigDivisor || this.coinunit;
+           
+            this.network.reward = (response.data.pool_statistics.general.last10blocksAvgReward || response.data.network_statistics.value) / this.coinunit;
+
+            this.network.lastblockdatetime = response.data.pool_statistics.collective.lastFoundBlock.ts / 1000;
+            if(!(this.network.coindifficultytarget = response.data.config.coinDiffTarget)) {throw new Error("Wrong api type")};
+            this.rewardperday = (86400000 / this.network.difficulty) * this.network.reward;
+            this.network.updatetime = ((new Date).getTime())/1000;
+          }
+          catch(error) {
+            if (!this.network.apiType == "__detecting") console.log("Network API response error for coin:" + this.symbol + "/n" + error);
+            this.network.hasError = error;
+          }
+        },
+
+
         cryptonotepool: async () => {
           try {
             this.network.hasError = "";

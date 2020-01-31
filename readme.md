@@ -1,4 +1,4 @@
-# CryptoNote Switching Relay Proxy v4.4.4
+# CryptoNote Switching Relay Proxy v4.4.5
 ***
 Forked from repository: https://github.com/sebseb7/cryptonote-proxy
 ![CryoptonoteUI](https://images2.imgbox.com/7d/3e/A8slRmiN_o.png)
@@ -25,6 +25,8 @@ Contact me at the support mail or at [hesido.com contact page](http://www.hesido
 For BTC donations: `3LhbnGPZ3YUTjWicDi1M3YwRTpGD8f3wWr`
 
 ## Version History
+### Changes in 4.4.5
+* Added Hasvhault Pool Api V3
 ### Changes in 4.4.4
 * Added Crex24, Qtrade, Xcalibra ticker apis
 * Added more mappings for RandomX variants

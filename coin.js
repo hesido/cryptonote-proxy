@@ -390,6 +390,33 @@ Coin: class {
             this.marketvalue = 0;
           }
         },
+
+        graviex: async() => {
+          let pricetypes = {
+            buy: "sell",
+            sell: "buy",
+            market: "last"
+          }
+          if (!this.ticker || !this.ticker.marketname) return false;
+         
+          try {
+           
+            let response = await axios.get(urljoin("https://graviex.net:443/api/v3/tickers/", this.ticker.marketname)).catch((error) => { throw new Error(error); });
+            let btcconvertresponse = (this.ticker.converttobtc) ? await axios.get(urljoin("https://graviex.net:443/api/v3/tickers/", this.ticker.converttobtc)).catch((error) => { throw new Error(error); }) : null;
+
+            //if (response.data.errorDescription || (btcconvertresponse && btcconvertresponse.data.errorDescription)) {throw new Error("API response error")};
+
+            let btcconvertmultiplier = btcconvertresponse && btcconvertresponse.data[pricetypes.buy] || 1;
+            this.ticker.updatetime = ((new Date).getTime()) / 1000;
+
+            return this.marketvalue = response.data[pricetypes[this.ticker.pricetype]] * btcconvertmultiplier;
+          }
+          catch (error) {
+            this.ticker.hasError = true;
+            console.log("Ticker API response failed for coin:" + this.symbol + "/n" + error);
+            this.marketvalue = 0;
+          }
+        }
       }
   
       this.FetchNetworkDetails = async () => (this.networkAPIS[await this.getApiType()] && this.networkAPIS[this.network.apiType]()) || (async () => {})

@@ -1,6 +1,6 @@
 {
   "name": "cryptonote-switching-relay-proxy",
-  "version": "4.4.5",
+  "version": "4.4.6",
   "license": "0BSD",
   "author": "sebseb",
   "contributors": [
@@ -19,12 +19,15 @@
     "axios": "^0.18.1",
     "bignumber.js": "^5.0.0",
     "body-parser": "^1.18.2",
+    "bufferutil": "^4.0.1",
     "express": "^4.16.2",
     "express-basic-auth": "^1.2.0",
     "pushbullet": "^2.2.0",
+    "request": "^2.88.0",
     "socket.io": "^2.0.4",
     "strip-json-comments": "^2.0.1",
     "url-join": "^4.0.0",
+    "utf-8-validate": "^5.0.2",
     "winston": "^2.4.3"
   },
   "engines": {
